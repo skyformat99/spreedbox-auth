@@ -1,0 +1,5 @@
+job:
+  script:
+    - make goget
+    - make build
+    - make test
