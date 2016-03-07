@@ -1,3 +1,8 @@
+[log]
+## Optional path to a logfile, defaults to stdout.
+## May be overriden by the -l command line param.
+# logfile = ./server.log
+
 [http]
 ## Required HTTP server listen address. May be specified as IP:PORT or
 ## as a path to file which will be used as a UNIX domain socket.
