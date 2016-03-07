@@ -15,10 +15,14 @@ import (
 
 var version = "unreleased"
 var defaultConfig = "./server.conf"
+var logFilename string
 
 func runner(runtime phoenix.Runtime) error {
-	router := mux.NewRouter()
+	if logFilename == "" || logFilename == "syslog" {
+		common.SetupLogfile(logFilename)
+	}
 
+	router := mux.NewRouter()
 	// HTTP listener support.
 	if _, err := runtime.GetString("http", "listen"); err == nil {
 		runtime.DefaultHTTPHandler(router)
@@ -51,8 +55,14 @@ func boot() error {
 		return nil
 	}
 
+	logFilename = common.GetLogfilename()
+	if logFilename == "" || logFilename == "syslog" {
+		common.SetupLogfile(logFilename)
+	}
+
 	return phoenix.NewServer("server", version).
 		Config(configPath).
+		Log(&logFilename).
 		CpuProfile(cpuprofile).
 		MemProfile(memprofile).
 		Run(runner)
