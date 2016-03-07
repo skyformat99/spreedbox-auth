@@ -13,7 +13,7 @@ import (
 	"golang.struktur.de/spreedbox/spreedbox-go/common"
 )
 
-var version = "unreleased"
+var appVersion = "unreleased"
 var defaultConfig = "./server.conf"
 var logFilename string
 
@@ -51,7 +51,7 @@ func boot() error {
 		flag.Usage()
 		return nil
 	} else if *showVersion {
-		fmt.Printf("Version %s\n", version)
+		fmt.Printf("Version %s\n", appVersion)
 		return nil
 	}
 
@@ -60,7 +60,7 @@ func boot() error {
 		common.SetupLogfile(logFilename)
 	}
 
-	return phoenix.NewServer("server", version).
+	return phoenix.NewServer("baddschd", appVersion).
 		Config(configPath).
 		Log(&logFilename).
 		CpuProfile(cpuprofile).
@@ -72,5 +72,4 @@ func main() {
 	if err := boot(); err != nil {
 		log.Fatal(err)
 	}
-	log.Print("exiting")
 }
