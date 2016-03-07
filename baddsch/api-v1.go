@@ -1,6 +1,6 @@
 package baddsch
 
-// APIv1 olds. the implementation of baddsch API v1.
+// APIv1 defines end points of baddsch API version 1.
 type APIv1 struct {
 }
 
