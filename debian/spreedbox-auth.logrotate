@@ -1,0 +1,9 @@
+/var/log/spreedbox/auth/baddschd.log {
+       daily
+       rotate 52
+       copytruncate
+       delaycompress
+       compress
+       notifempty
+       missingok
+}

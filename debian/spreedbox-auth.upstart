@@ -1,0 +1,45 @@
+# spreedbox-auth
+
+description "Spreedbox auth server"
+
+start on stopped rc
+stop on runlevel [!2345]
+
+env DAEMON=/usr/bin/baddschd
+
+respawn
+respawn limit 10 2
+
+umask 022
+
+script
+    . /etc/default/spreedbox-auth
+
+    # Create the run directory.
+    test -e $SPREEDBOX_SERVICE_RUN_DIR || mkdir -p $SPREEDBOX_SERVICE_RUN_DIR || true
+    chown -R $SPREEDBOX_SERVICE_USER:$SPREEDBOX_SERVICE_GROUP $SPREEDBOX_SERVICE_RUN_DIR || true
+    chmod 770 $SPREEDBOX_SERVICE_RUN_DIR || true
+    chown :$SPREEDBOX_SERVICE_GROUP /var/run/spreedbox || true
+    chmod 770 /var/run/spreedbox || true
+
+    # Set some performance parameters
+    ulimit -n $SPREEDBOX_SERVICE_NOFILE
+    export GOMAXPROCS=$SPREEDBOX_SERVICE_GOMAXPROCS
+
+    exec start-stop-daemon --start \
+                           --make-pidfile \
+                           --pidfile $SPREEDBOX_SERVICE_PID \
+                           --chuid $SPREEDBOX_SERVICE_USER \
+                           --group $SPREEDBOX_SERVICE_GROUP \
+                           --startas $DAEMON \
+                           -- \
+                           -c $SPREEDBOX_SERVICE_CONF \
+                           -l $SPREEDBOX_SERVICE_LOG \
+                           $SPREEDBOX_SERVICE_ARGS
+end script
+
+post-stop script
+    . /etc/default/spreedbox-auth
+
+    rm -f $SPREEDBOX_SERVICE_PID
+end script

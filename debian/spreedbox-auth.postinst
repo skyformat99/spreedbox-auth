@@ -1,0 +1,16 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+    configure)
+        if [ -e "/etc/init.d/nginx" ]; then
+            invoke-rc.d nginx reload || true
+        fi
+        ;;
+    *)
+        exit 0
+    ;;
+esac
+
+#DEBHELPER#

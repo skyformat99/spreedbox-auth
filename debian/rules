@@ -1,0 +1,20 @@
+#!/usr/bin/make -f
+
+#export DH_VERBOSE=1
+export DH_OPTIONS
+export DH_GOPKG := golang.struktur.de/spreedbox/spreedbox-auth
+#export DEB_BUILD_OPTIONS=nocheck
+
+DEBVERS := $(shell dpkg-parsechangelog | sed -n -e 's/^Version: //p')
+VERSION := $(shell echo '$(DEBVERS)' | sed -e 's/^[[:digit:]]*://' -e 's/[~-].*//')
+export VERSION
+
+%:
+	dh $@ --buildsystem=golang --with=golang --fail-missing
+
+override_dh_install:
+	dh_install
+	install -m644 -D $(CURDIR)/server.conf.in $(CURDIR)/debian/spreedbox-auth/etc/spreedbox/baddschd.conf
+	install -m644 -D $(CURDIR)/debian/upstream.conf $(CURDIR)/debian/spreedbox-auth/etc/nginx/conf.d/spreedbox-auth.conf
+	install -m644 -D $(CURDIR)/debian/nginx.conf $(CURDIR)/debian/spreedbox-auth/etc/nginx/spreedbox.d/spreedbox-auth.conf
+

@@ -1,0 +1,34 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+    install|upgrade)
+       SPREEDBOX_SERVICE_USER='spreedbox-auth'
+       SPREEDBOX_SERVICE_GROUP='spreedbox-service'
+       SPREEDBOX_SERVICE_HOME='/var/lib/spreedbox/auth'
+
+       # Create the service user
+       if ! getent passwd | grep -q "^$SPREEDBOX_SERVICE_USER:"; then
+         echo -n "Adding system user $SPREEDBOX_SERVICE_USER.."
+         adduser --quiet \
+                 --system \
+                 --ingroup $SPREEDBOX_SERVICE_GROUP \
+                 --home $SPREEDBOX_SERVICE_HOME \
+                 --no-create-home \
+                 --disabled-login \
+                 $SPREEDBOX_SERVICE_USER 2>/dev/null || true
+         echo "..done"
+       fi
+
+       # Create the home directory.
+       test -e $SPREEDBOX_SERVICE_HOME || mkdir -p $SPREEDBOX_SERVICE_HOME
+       chown -R $SPREEDBOX_SERVICE_USER:$SPREEDBOX_SERVICE_GROUP $SPREEDBOX_SERVICE_HOME
+       chmod 700 $SPREEDBOX_SERVICE_HOME
+       ;;
+    *)
+        exit 0
+    ;;
+esac
+
+#DEBHELPER#
