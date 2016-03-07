@@ -1,2 +1,12 @@
 [http]
-listen=127.0.0.1:7031
+## Required HTTP server listen address. May be specified as IP:PORT or
+## as a path to file which will be used as a UNIX domain socket.
+listen = /var/run/spreedbox/auth/http.socket
+
+## Optional timeout for reads from the HTTP
+## socket in seconds, defaults to 10.
+# readtimeout = 10
+
+## Optional timeout for writes to the HTTP
+## socket in seconds, defaults to 10.
+# writetimeout = 10
