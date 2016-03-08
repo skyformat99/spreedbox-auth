@@ -16,7 +16,7 @@ func NewAPIv1(holder APIResourceHolder) API {
 
 // AddResources adds the resources of this API to the API holder.
 func (api *APIv1) AddResources(holder APIResourceHolder) {
-	holder.AddResource(&WellknownJSON{map[string]interface{}{
+	holder.AddResource(&JSONDocument{map[string]interface{}{
 		"owncloud_endpoint":          "https://{{.Host}}/index.php",
 		"owncloud-spreedme_endpoint": "https://{{.Host}}/index.php/apps/spreedme",
 		"spreed-webrtc_endpoint":     "https://{{.Host}}/webrtc",

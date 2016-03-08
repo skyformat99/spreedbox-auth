@@ -7,15 +7,15 @@ import (
 	"text/template"
 )
 
-// WellknownJSON defines a JSON document to return as HTTP response with
+// JSONDocument defines JSON data to return as HTTP response with
 // template interpolation support.
-type WellknownJSON struct {
+type JSONDocument struct {
 	Data map[string]interface{}
 }
 
 // Get is the HTTP response handler for GET requests encoding the
 // payload data to JSON with variable interpolation.
-func (doc *WellknownJSON) Get(r *http.Request) (int, interface{}, http.Header) {
+func (doc *JSONDocument) Get(r *http.Request) (int, interface{}, http.Header) {
 	b, err := json.MarshalIndent(doc.Data, "", "  ")
 	if err != nil {
 		return http.StatusInternalServerError, err.Error(), nil
