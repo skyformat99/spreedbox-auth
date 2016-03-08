@@ -1,3 +1,9 @@
+spreedbox-auth (0.0.3) trusty; urgency=medium
+
+  * Renamed packaging to provide authd and baddschd packages.
+
+ -- Simon Eisenmann <simon@struktur.de>  Tue, 08 Mar 2016 11:28:28 +0100
+
 spreedbox-auth (0.0.2) trusty; urgency=medium
 
   * Use 'baddschd' as log prefix instead of 'server'.
