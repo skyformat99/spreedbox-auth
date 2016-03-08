@@ -13,7 +13,7 @@ respawn limit 10 2
 umask 022
 
 script
-    . /etc/default/spreedbox-auth
+    . /etc/default/spreedbox-authd
 
     # Create the run directory.
     test -e $SPREEDBOX_SERVICE_RUN_DIR || mkdir -p $SPREEDBOX_SERVICE_RUN_DIR || true
@@ -39,7 +39,7 @@ script
 end script
 
 post-stop script
-    . /etc/default/spreedbox-auth
+    . /etc/default/spreedbox-authd
 
     rm -f $SPREEDBOX_SERVICE_PID
 end script

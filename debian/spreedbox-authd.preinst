@@ -4,9 +4,9 @@ set -e
 
 case "$1" in
     install|upgrade)
-       SPREEDBOX_SERVICE_USER='spreedbox-auth'
+       SPREEDBOX_SERVICE_USER='spreedbox-authd'
        SPREEDBOX_SERVICE_GROUP='spreedbox-service'
-       SPREEDBOX_SERVICE_HOME='/var/lib/spreedbox/auth'
+       SPREEDBOX_SERVICE_HOME='/var/lib/spreedbox/authd'
 
        # Create the service user
        if ! getent passwd | grep -q "^$SPREEDBOX_SERVICE_USER:"; then

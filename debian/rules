@@ -14,7 +14,7 @@ export VERSION
 
 override_dh_install:
 	dh_install
-	install -m644 -D $(CURDIR)/server.conf.in $(CURDIR)/debian/spreedbox-auth/etc/spreedbox/baddschd.conf
-	install -m644 -D $(CURDIR)/debian/upstream.conf $(CURDIR)/debian/spreedbox-auth/etc/nginx/conf.d/spreedbox-auth.conf
-	install -m644 -D $(CURDIR)/debian/nginx.conf $(CURDIR)/debian/spreedbox-auth/etc/nginx/spreedbox.d/spreedbox-auth.conf
+	install -m644 -D $(CURDIR)/server.conf.in $(CURDIR)/debian/spreedbox-authd/etc/spreedbox/baddschd.conf
+	install -m644 -D $(CURDIR)/debian/upstream.conf $(CURDIR)/debian/spreedbox-authd/etc/nginx/conf.d/spreedbox-authd.conf
+	install -m644 -D $(CURDIR)/debian/nginx.conf $(CURDIR)/debian/spreedbox-authd/etc/nginx/spreedbox.d/spreedbox-authd.conf
 

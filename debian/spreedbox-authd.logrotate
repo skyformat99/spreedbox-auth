@@ -1,4 +1,4 @@
-/var/log/spreedbox/auth/baddschd.log {
+/var/log/spreedbox/authd/baddschd.log {
        daily
        rotate 52
        copytruncate

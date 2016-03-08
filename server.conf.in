@@ -6,7 +6,7 @@
 [http]
 ## Required HTTP server listen address. May be specified as IP:PORT or
 ## as a path to file which will be used as a UNIX domain socket.
-listen = /var/run/spreedbox/auth/http.socket
+listen = /var/run/spreedbox/authd/baddschd-http.socket
 
 ## Optional timeout for reads from the HTTP
 ## socket in seconds, defaults to 10.

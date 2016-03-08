@@ -28,8 +28,9 @@ Depends:
 Description: Spreedbox auth development Go package
  Spreedbox auth development Go package
 
-Package: spreedbox-auth
+Package: spreedbox-authd
 Architecture: any
+Provides: spreedbox-baddschd
 Depends:
  ${shlibs:Depends},
  ${misc:Depends},
