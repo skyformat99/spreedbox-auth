@@ -20,5 +20,8 @@ func (api *APIv1) AddResources(holder APIResourceHolder) {
 		"owncloud_endpoint":          "https://{{.Host}}/index.php",
 		"owncloud-spreedme_endpoint": "https://{{.Host}}/index.php/apps/spreedme",
 		"spreed-webrtc_endpoint":     "https://{{.Host}}/webrtc",
+		"authorization_endpoint":     "https://{{.Host}}/auth/authorize",
 	}}, "/well-known/spreed-configuration")
+
+	holder.AddResource(&AuthorizeDocument{}, "/authorize")
 }
