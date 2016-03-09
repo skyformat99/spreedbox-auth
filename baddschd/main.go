@@ -30,7 +30,10 @@ func runner(runtime phoenix.Runtime) error {
 
 	api := sloth.NewAPI()
 	api.SetMux(router.PathPrefix("/api/v1/").Subrouter())
-	baddsch.NewAPIv1(api)
+	_, err := baddsch.NewAPIv1(api, runtime)
+	if err != nil {
+		return err
+	}
 
 	return runtime.Start()
 }
@@ -70,6 +73,6 @@ func boot() error {
 
 func main() {
 	if err := boot(); err != nil {
-		log.Fatal(err)
+		log.Fatal("startup failed")
 	}
 }

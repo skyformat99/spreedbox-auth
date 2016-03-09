@@ -1,11 +1,14 @@
 package baddsch
 
 import (
+	"crypto/rsa"
 	"errors"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
+
+	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch/jwt"
 
 	"github.com/google/go-querystring/query"
 	"github.com/gorilla/schema"
@@ -17,6 +20,11 @@ var decoder = schema.NewDecoder()
 // provide the OpenID connect authorization endpoint with authentication
 // requests.
 type AuthorizeDocument struct {
+	IssueIdentifier string
+	TokenTyp        string
+	TokenAlg        string
+	TokenDuration   time.Duration
+	TokenPrivateKey *rsa.PrivateKey
 }
 
 // Get is the HTTP response handler for requests to the authorization endpoint.
@@ -34,20 +42,17 @@ func (doc *AuthorizeDocument) Get(r *http.Request) (int, interface{}, http.Heade
 	// Authorization Server Authenticates End-User
 	// Authorization Server Obtains End-User Consent/Authorization
 	// Successful Authentication Response
-	log.Println("AuthorizeDocument Get form", r.Form)
-
 	var err error
 	ar := &AuthenticationRequest{}
 	if err = decoder.Decode(ar, r.Form); err != nil {
 		return 400, err.Error(), nil
 	}
-	log.Println("AuthorizeDocument Get ar", ar)
 
 	ar.Options = &AuthenticationRequestOptions{
 		Authorization: r.Header.Get("Authorization"),
 	}
 
-	return ar.Response()
+	return ar.Response(doc)
 }
 
 type AuthenticationRequestOptions struct {
@@ -106,7 +111,7 @@ func (ar *AuthenticationRequest) Authorize() (error, string) {
 	return nil, ""
 }
 
-func (ar *AuthenticationRequest) Response() (int, interface{}, http.Header) {
+func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interface{}, http.Header) {
 	redirectURL, err := url.Parse(ar.RedirectURL)
 	if err != nil {
 		return 400, err.Error(), nil
@@ -122,6 +127,20 @@ func (ar *AuthenticationRequest) Response() (int, interface{}, http.Header) {
 		err, errDescription = ar.Authorize()
 	}
 
+	/*var privateKey *rsa.PrivateKey
+	privateKey, err = rsa.GenerateKey(rand.Reader, 1024)*/
+
+	var idToken *jwt.Token
+	idToken, err = jwt.Encode(&jwt.Header{
+		Alg: doc.TokenAlg,
+		Typ: doc.TokenTyp,
+	}, &jwt.Claims{
+		Iss:   doc.IssueIdentifier,
+		Sub:   "todo-user-id",
+		Aud:   "client-id",
+		Nonce: ar.Nonce,
+	}, &doc.TokenDuration, doc.TokenPrivateKey)
+
 	if err != nil {
 		errResponse := &AuthenticationErrorResponse{
 			Error: err.Error(),
@@ -136,12 +155,22 @@ func (ar *AuthenticationRequest) Response() (int, interface{}, http.Header) {
 	}
 
 	successResponse := &AuthenticationSuccessResponse{
-		IDToken:   "the-token-value",
-		ExpiresIn: 3600,
+		TokenType: "Bearer",
+		IDToken:   idToken.Raw,
+		ExpiresIn: idToken.ExpiresIn,
 	}
 	if ar.State != "" {
 		successResponse.State = ar.State
 	}
+
+	/*token, err := jwt.Decode(idToken, func(header *jwt.Header, claims *jwt.Claims) (interface{}, error) {
+		if header.Alg != "RS256" {
+			return nil, fmt.Errorf("unexpected signing method: %v", header.Alg)
+		}
+		return privateKey.Public(), nil
+	})
+	log.Println("xxx token valid", token, err)*/
+
 	return ar.Redirect(ar.Options.RedirectURL, successResponse, ar.Options.UseFragment)
 }
 
@@ -153,15 +182,20 @@ func (ar *AuthenticationRequest) Redirect(url *url.URL, params interface{}, frag
 		url.RawQuery = v.Encode()
 	}
 
-	return 302, "", http.Header{"Location": {url.String()}}
+	return 302, "", http.Header{
+		"Location":      {url.String()},
+		"Cache-Control": {"no-store"},
+		"Pragma":        {"no-cache"},
+	}
 }
 
 type AuthenticationSuccessResponse struct {
 	//AccessToken  string `url:"access_token"`
 	//RefreshToken string `url:"refresh_token"`
+	TokenType string `url:"token_type"`
 	IDToken   string `url:"id_token"`
 	State     string `url:"state"`
-	ExpiresIn int    `url:"expires_in"`
+	ExpiresIn int64  `url:"expires_in"`
 }
 
 type AuthenticationErrorResponse struct {
