@@ -42,13 +42,20 @@ func (api *APIv1) AddResources(holder APIResourceHolder) error {
 	if err != nil {
 		return err
 	}
+	tokenAlg := api.Config.GetStringDefault("auth", "tokenAlg", "RS256")
 	holder.AddResource(&AuthorizeDocument{
 		IssueIdentifier: api.Config.GetStringDefault("auth", "tokenIssueIdentifier", "https://spreedbox.localdomain"),
-		TokenAlg:        api.Config.GetStringDefault("auth", "tokenAlg", "RS256"),
+		TokenAlg:        tokenAlg,
 		TokenTyp:        api.Config.GetStringDefault("auth", "tokenTyp", "JWT"),
 		TokenDuration:   time.Duration(api.Config.GetIntDefault("auth", "tokenDuration", 3600)) * time.Second,
 		TokenPrivateKey: tokenPrivateKey,
 	}, "/authorize")
+
+	// Validate support.
+	holder.AddResource(&ValidateDocument{
+		TokenAlg:       tokenAlg,
+		TokenPublicKey: tokenPrivateKey.Public(),
+	}, "/validate")
 
 	return nil
 }

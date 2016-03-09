@@ -1,7 +1,7 @@
 package baddsch
 
 import (
-	"crypto/rsa"
+	"crypto"
 	"errors"
 	"net/http"
 	"net/url"
@@ -14,6 +14,8 @@ import (
 	"github.com/gorilla/schema"
 )
 
+// curl -v "http://user:password@localhost:7031/api/v1/authorize?response_type=id_token&redirect_url=http://localhost&nonce=123&state=abc&prompt=none"
+
 var decoder = schema.NewDecoder()
 
 // AuthorizeDocument im defines the JSON data to return and receive to
@@ -24,7 +26,7 @@ type AuthorizeDocument struct {
 	TokenTyp        string
 	TokenAlg        string
 	TokenDuration   time.Duration
-	TokenPrivateKey *rsa.PrivateKey
+	TokenPrivateKey crypto.PrivateKey
 }
 
 // Get is the HTTP response handler for requests to the authorization endpoint.
@@ -127,9 +129,6 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 		err, errDescription = ar.Authorize()
 	}
 
-	/*var privateKey *rsa.PrivateKey
-	privateKey, err = rsa.GenerateKey(rand.Reader, 1024)*/
-
 	var idToken *jwt.Token
 	idToken, err = jwt.Encode(&jwt.Header{
 		Alg: doc.TokenAlg,
@@ -162,14 +161,6 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 	if ar.State != "" {
 		successResponse.State = ar.State
 	}
-
-	/*token, err := jwt.Decode(idToken, func(header *jwt.Header, claims *jwt.Claims) (interface{}, error) {
-		if header.Alg != "RS256" {
-			return nil, fmt.Errorf("unexpected signing method: %v", header.Alg)
-		}
-		return privateKey.Public(), nil
-	})
-	log.Println("xxx token valid", token, err)*/
 
 	return ar.Redirect(ar.Options.RedirectURL, successResponse, ar.Options.UseFragment)
 }

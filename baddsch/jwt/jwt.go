@@ -1,7 +1,7 @@
 package jwt
 
 import (
-	"crypto/rsa"
+	"crypto"
 	"errors"
 	"fmt"
 	"time"
@@ -103,7 +103,7 @@ func NewClaims(data map[string]interface{}) (*Claims, error) {
 	return c, nil
 }
 
-func Encode(header *Header, claims *Claims, duration *time.Duration, key *rsa.PrivateKey) (*Token, error) {
+func Encode(header *Header, claims *Claims, duration *time.Duration, key crypto.PrivateKey) (*Token, error) {
 	method, err := header.SigningMethod()
 	if err != nil {
 		return nil, err
