@@ -3,6 +3,7 @@ package baddsch
 import (
 	"crypto"
 	"errors"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -209,11 +210,27 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 					PrivateClaims: make(map[string]interface{}),
 				}
 				if accessToken != nil {
-					// TODO(longsleep): Add at_hash claim as defined in
+					// Add at_hash claim as defined in
 					// http://openid.net/specs/openid-connect-core-1_0.html#CodeValidation
-					idTokenClaims.PrivateClaims["at_hash"] = ""
+					var hash crypto.Hash
+					switch tokenHeader.Alg {
+					case "RS256":
+						hash = crypto.SHA256
+					case "RS384":
+						hash = crypto.SHA384
+					case "RS512":
+						hash = crypto.SHA512
+					}
+					if hash.Available() {
+						idTokenClaims.PrivateClaims["at_hash"] = LeftmostHashBase64URLEncoding([]byte(accessToken.Raw), hash)
+					} else {
+						log.Println("selected hashing alg not available", tokenHeader.Alg)
+						err = errors.New("server_error")
+					}
 				}
-				idToken, err = jwt.Encode(tokenHeader, idTokenClaims, &doc.TokenDuration, doc.TokenPrivateKey)
+				if err == nil {
+					idToken, err = jwt.Encode(tokenHeader, idTokenClaims, &doc.TokenDuration, doc.TokenPrivateKey)
+				}
 			}
 		}
 	}
