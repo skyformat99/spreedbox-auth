@@ -2,6 +2,7 @@ package baddsch
 
 import (
 	"crypto"
+	"encoding/base64"
 	"errors"
 	"log"
 	"net/http"
@@ -137,8 +138,21 @@ func (ar *AuthenticationRequest) Authenticate() (error, string) {
 	}
 
 	auth := strings.SplitN(ar.Options.Authorization, " ", 2)
-	if len(auth) != 2 || auth[0] != "Basic" {
+	if len(auth) != 2 {
 		return errors.New("invalid_request"), "authorization header is invalid"
+	}
+
+	var userID string
+	switch auth[0] {
+	case "Basic":
+		if basic, err := base64.StdEncoding.DecodeString(auth[1]); err == nil {
+			userID = strings.SplitN(string(basic), ":", 2)[0]
+		} else {
+			return errors.New("invalid_request"), err.Error()
+		}
+		log.Printf("authentication request for: %v\n", userID)
+	default:
+		return errors.New("invalid_request"), "invalid authorization type"
 	}
 
 	if ar.clientID == "" && ar.RedirectURL != "" {
@@ -150,9 +164,8 @@ func (ar *AuthenticationRequest) Authenticate() (error, string) {
 		return errors.New("invalid_client"), "client id cannot be empty"
 	}
 
-	// TODO(longsleep): Set ar.userID and ar.clientID here.
-	ar.userID = "todo-add-userid"
-
+	// Set gathered data.
+	ar.userID = userID
 	return nil, ""
 }
 
