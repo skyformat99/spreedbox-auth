@@ -42,20 +42,24 @@ func (api *APIv1) AddResources(holder APIResourceHolder) error {
 	if err != nil {
 		return err
 	}
+	tokenIssueIdentifier := api.Config.GetStringDefault("auth", "tokenIssueIdentifier", "https://self-issued.me")
 	tokenAlg := api.Config.GetStringDefault("auth", "tokenAlg", "RS256")
+	tokenAccessTokenClaim := api.Config.GetStringDefault("auth", "tokenAccessTokenClaim", "baddsch/at")
 	holder.AddResource(&AuthorizeDocument{
-		IssueIdentifier:       api.Config.GetStringDefault("auth", "tokenIssueIdentifier", "https://self-issued.me"),
+		IssueIdentifier:       tokenIssueIdentifier,
 		TokenAlg:              tokenAlg,
 		TokenTyp:              api.Config.GetStringDefault("auth", "tokenTyp", "JWT"),
 		TokenDuration:         time.Duration(api.Config.GetIntDefault("auth", "tokenDuration", 3600)) * time.Second,
-		TokenAccessTokenClaim: api.Config.GetStringDefault("auth", "tokenAccessTokenClaim", "baddsch/at"),
+		TokenAccessTokenClaim: tokenAccessTokenClaim,
 		TokenPrivateKey:       tokenPrivateKey,
 	}, "/authorize")
 
 	// Validate support.
 	holder.AddResource(&ValidateDocument{
-		TokenAlg:       tokenAlg,
-		TokenPublicKey: tokenPrivateKey.Public(),
+		IssueIdentifier:       tokenIssueIdentifier,
+		TokenAlg:              tokenAlg,
+		TokenAccessTokenClaim: tokenAccessTokenClaim,
+		TokenPublicKey:        tokenPrivateKey.Public(),
 	}, "/validate")
 
 	return nil

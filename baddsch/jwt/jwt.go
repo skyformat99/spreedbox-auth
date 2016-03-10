@@ -103,6 +103,30 @@ func NewClaims(data map[string]interface{}) (*Claims, error) {
 	return c, nil
 }
 
+func (c *Claims) CheckString(name string, expected string) bool {
+	if c.PrivateClaims == nil {
+		return false
+	}
+	if v, ok := c.PrivateClaims[name]; ok {
+		if s, found := v.(string); found {
+			return s == expected
+		}
+	}
+	return false
+}
+
+func (c *Claims) CheckBool(name string, expected bool) bool {
+	if c.PrivateClaims == nil {
+		return false
+	}
+	if v, ok := c.PrivateClaims[name]; ok {
+		if b, found := v.(bool); found {
+			return b == expected
+		}
+	}
+	return false
+}
+
 func Encode(header *Header, claims *Claims, duration *time.Duration, key crypto.PrivateKey) (*Token, error) {
 	method, err := header.SigningMethod()
 	if err != nil {

@@ -12,12 +12,9 @@ import (
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch/jwt"
 
 	"github.com/google/go-querystring/query"
-	"github.com/gorilla/schema"
 )
 
 // curl -v "http://user:password@localhost:7031/api/v1/authorize?response_type=id_token&redirect_url=http://localhost&nonce=123&state=abc&prompt=none&scope=openid"
-
-var decoder = schema.NewDecoder()
 
 // AuthorizeDocument im defines the JSON data to return and receive to
 // provide the OpenID connect authorization endpoint with authentication
@@ -81,7 +78,7 @@ type AuthenticationRequest struct {
 
 func NewAuthenticationRequest(r *http.Request) (*AuthenticationRequest, error) {
 	ar := &AuthenticationRequest{}
-	if err := decoder.Decode(ar, r.Form); err != nil {
+	if err := DecodeRequestSchema(ar, r.Form); err != nil {
 		return nil, err
 	}
 
