@@ -44,7 +44,7 @@ func (api *APIv1) AddResources(holder APIResourceHolder) error {
 	}
 	tokenAlg := api.Config.GetStringDefault("auth", "tokenAlg", "RS256")
 	holder.AddResource(&AuthorizeDocument{
-		IssueIdentifier: api.Config.GetStringDefault("auth", "tokenIssueIdentifier", "https://spreedbox.localdomain"),
+		IssueIdentifier: api.Config.GetStringDefault("auth", "tokenIssueIdentifier", "https://self-issued.me"),
 		TokenAlg:        tokenAlg,
 		TokenTyp:        api.Config.GetStringDefault("auth", "tokenTyp", "JWT"),
 		TokenDuration:   time.Duration(api.Config.GetIntDefault("auth", "tokenDuration", 3600)) * time.Second,

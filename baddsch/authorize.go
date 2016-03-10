@@ -73,6 +73,8 @@ type AuthenticationRequest struct {
 	State        string                        `schema:"state"`
 	Scope        string                        `schema:"scope"`
 	Prompt       string                        `schema:"prompt"`
+	userID       string                        `schema:"-"`
+	clientID     string                        `schema:"-"`
 }
 
 func NewAuthenticationRequest(r *http.Request) (*AuthenticationRequest, error) {
@@ -86,7 +88,7 @@ func NewAuthenticationRequest(r *http.Request) (*AuthenticationRequest, error) {
 		ResponseTypes: make(map[string]bool),
 		Scopes:        make(map[string]bool),
 	}
-	for _, rt := range strings.Split(ar.Scope, " ") {
+	for _, rt := range strings.Split(ar.ResponseType, " ") {
 		ar.Options.ResponseTypes[rt] = true
 	}
 	for _, scope := range strings.Split(ar.Scope, " ") {
@@ -102,6 +104,12 @@ func (ar *AuthenticationRequest) Validate() (error, string) {
 	}
 	switch ar.ResponseType {
 	case "id_token":
+		fallthrough
+	case "token":
+		// NOTE(longsleep): The token only mode violates the OpenID specification
+		// as this mode usually does not make any sense as no ID token will be
+		// returned. We still implement it, to provide auth to clients which do
+		// not require the ID token.
 		fallthrough
 	case "id_token token":
 		ar.Options.UseFragment = true
@@ -134,6 +142,18 @@ func (ar *AuthenticationRequest) Authenticate() (error, string) {
 		return errors.New("invalid_request"), "authorization header is invalid"
 	}
 
+	if ar.clientID == "" && ar.RedirectURL != "" {
+		// We support self issued mode as defined in http://openid.net/specs/openid-connect-core-1_0.html#SelfIssued
+		// and defines the client ID is the redirect URL.
+		ar.clientID = ar.RedirectURL
+	}
+	if ar.clientID == "" {
+		return errors.New("invalid_client"), "client id cannot be empty"
+	}
+
+	// TODO(longsleep): Set ar.userID and ar.clientID here.
+	ar.userID = "todo-add-userid"
+
 	return nil, ""
 }
 
@@ -160,22 +180,42 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 	var accessToken *jwt.Token
 	var idToken *jwt.Token
 	if err == nil {
-		claims := &jwt.Claims{
-			Iss:   doc.IssueIdentifier,
-			Sub:   "todo-user-id",
-			Aud:   "client-id",
-			Nonce: ar.Nonce,
-		}
-
-		switch ar.ResponseType {
-		case "id_token token":
-			// Create access token
-		}
-
-		idToken, err = jwt.Encode(&jwt.Header{
+		tokenHeader := &jwt.Header{
 			Alg: doc.TokenAlg,
 			Typ: doc.TokenTyp,
-		}, claims, &doc.TokenDuration, accessToken, doc.TokenPrivateKey)
+		}
+
+		if _, ok := ar.Options.ResponseTypes["token"]; ok {
+			// Create access token
+			accessTokenClaims := &jwt.Claims{
+				Iss:           doc.IssueIdentifier,
+				Sub:           ar.userID,
+				Aud:           ar.clientID,
+				Nonce:         ar.Nonce,
+				PrivateClaims: make(map[string]interface{}),
+			}
+			accessTokenClaims.PrivateClaims["spreedbox/at"] = true
+			accessToken, err = jwt.Encode(tokenHeader, accessTokenClaims, &doc.TokenDuration, doc.TokenPrivateKey)
+		}
+
+		if err == nil {
+			if _, ok := ar.Options.ResponseTypes["id_token"]; ok {
+				// Create ID token
+				idTokenClaims := &jwt.Claims{
+					Iss:           doc.IssueIdentifier,
+					Sub:           ar.userID,
+					Aud:           ar.clientID,
+					Nonce:         ar.Nonce,
+					PrivateClaims: make(map[string]interface{}),
+				}
+				if accessToken != nil {
+					// TODO(longsleep): Add at_hash claim as defined in
+					// http://openid.net/specs/openid-connect-core-1_0.html#CodeValidation
+					idTokenClaims.PrivateClaims["at_hash"] = ""
+				}
+				idToken, err = jwt.Encode(tokenHeader, idTokenClaims, &doc.TokenDuration, doc.TokenPrivateKey)
+			}
+		}
 	}
 
 	if err != nil {
@@ -191,20 +231,21 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 		return ar.Redirect(ar.Options.RedirectURL, errResponse, ar.Options.UseFragment)
 	}
 
-	successResponse := &AuthenticationSuccessResponse{
-		IDToken: idToken.Raw,
-	}
+	successResponse := &AuthenticationSuccessResponse{}
 	if ar.State != "" {
 		successResponse.State = ar.State
 	}
 
-	switch ar.ResponseType {
-	case "id_token token":
+	if _, ok := ar.Options.ResponseTypes["token"]; ok {
 		successResponse.TokenType = "Bearer"
 		if accessToken != nil {
 			successResponse.AccessToken = accessToken.Raw
 			successResponse.ExpiresIn = accessToken.ExpiresIn
 		}
+	}
+
+	if idToken != nil {
+		successResponse.IDToken = idToken.Raw
 	}
 
 	return ar.Redirect(ar.Options.RedirectURL, successResponse, ar.Options.UseFragment)
@@ -228,7 +269,7 @@ func (ar *AuthenticationRequest) Redirect(url *url.URL, params interface{}, frag
 type AuthenticationSuccessResponse struct {
 	AccessToken string `url:"access_token,omitempty"`
 	TokenType   string `url:"token_type,omitempty"`
-	IDToken     string `url:"id_token"`
+	IDToken     string `url:"id_token,omitempty"`
 	State       string `url:"state"`
 	ExpiresIn   int64  `url:"expires_in,omitempty"`
 }
