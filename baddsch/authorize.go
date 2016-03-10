@@ -57,6 +57,11 @@ func (doc *AuthorizeDocument) Get(r *http.Request) (int, interface{}, http.Heade
 	return ar.Response(doc)
 }
 
+// Post is the HTTP response handler for requests to the authentication endpoint.
+func (doc *AuthorizeDocument) Post(r *http.Request) (int, interface{}, http.Header) {
+	return doc.Get(r)
+}
+
 type AuthenticationRequestOptions struct {
 	RedirectURL   *url.URL
 	UseFragment   bool

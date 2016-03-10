@@ -24,6 +24,10 @@ func (doc *ValidateDocument) Get(r *http.Request) (int, interface{}, http.Header
 	return vr.Response(doc)
 }
 
+func (doc *ValidateDocument) Post(r *http.Request) (int, interface{}, http.Header) {
+	return doc.Get(r)
+}
+
 type ValidationRequest struct {
 	Authorization string
 }
