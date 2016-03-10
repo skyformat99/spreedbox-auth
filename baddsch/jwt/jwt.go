@@ -52,6 +52,7 @@ type Claims struct {
 	Exp           int64                  `json:"exp"`
 	Iat           int64                  `json:"iat"`
 	Sub           string                 `json:"sub,omitempty"`
+	AtHash        string                 `json:"at_hash,omitempty"`
 	Nonce         string                 `json:"nonce,omitempty"`
 	PrivateClaims map[string]interface{} `json:"-"`
 }
@@ -103,7 +104,7 @@ func NewClaims(data map[string]interface{}) (*Claims, error) {
 	return c, nil
 }
 
-func Encode(header *Header, claims *Claims, duration *time.Duration, key crypto.PrivateKey) (*Token, error) {
+func Encode(header *Header, claims *Claims, duration *time.Duration, accessToken *Token, key crypto.PrivateKey) (*Token, error) {
 	method, err := header.SigningMethod()
 	if err != nil {
 		return nil, err
@@ -120,6 +121,10 @@ func Encode(header *Header, claims *Claims, duration *time.Duration, key crypto.
 	}
 	if claims.Exp < claims.Iat {
 		return nil, errors.New("invalid exp, must be later than iat")
+	}
+	if accessToken != nil {
+		// TODO(longsleep): Create access token hash.
+		// http://openid.net/specs/openid-connect-core-1_0.html#ImplicitTokenValidation
 	}
 
 	token := jwtgo.New(method)

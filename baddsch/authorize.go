@@ -76,6 +76,8 @@ type AuthenticationRequest struct {
 func (ar *AuthenticationRequest) Validate() (error, string) {
 	switch ar.ResponseType {
 	case "id_token":
+		fallthrough
+	case "id_token token":
 		ar.Options.UseFragment = true
 	default:
 		return errors.New("unsupported_response_type"), ""
@@ -129,16 +131,24 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 		err, errDescription = ar.Authorize()
 	}
 
-	var idToken *jwt.Token
-	idToken, err = jwt.Encode(&jwt.Header{
-		Alg: doc.TokenAlg,
-		Typ: doc.TokenTyp,
-	}, &jwt.Claims{
+	claims := &jwt.Claims{
 		Iss:   doc.IssueIdentifier,
 		Sub:   "todo-user-id",
 		Aud:   "client-id",
 		Nonce: ar.Nonce,
-	}, &doc.TokenDuration, doc.TokenPrivateKey)
+	}
+
+	var accessToken *jwt.Token
+	switch ar.ResponseType {
+	case "id_token token":
+		// Create access token
+	}
+
+	var idToken *jwt.Token
+	idToken, err = jwt.Encode(&jwt.Header{
+		Alg: doc.TokenAlg,
+		Typ: doc.TokenTyp,
+	}, claims, &doc.TokenDuration, accessToken, doc.TokenPrivateKey)
 
 	if err != nil {
 		errResponse := &AuthenticationErrorResponse{
@@ -154,12 +164,19 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 	}
 
 	successResponse := &AuthenticationSuccessResponse{
-		TokenType: "Bearer",
-		IDToken:   idToken.Raw,
-		ExpiresIn: idToken.ExpiresIn,
+		IDToken: idToken.Raw,
 	}
 	if ar.State != "" {
 		successResponse.State = ar.State
+	}
+
+	switch ar.ResponseType {
+	case "id_token token":
+		successResponse.TokenType = "Bearer"
+		if accessToken != nil {
+			successResponse.AccessToken = accessToken.Raw
+			successResponse.ExpiresIn = accessToken.ExpiresIn
+		}
 	}
 
 	return ar.Redirect(ar.Options.RedirectURL, successResponse, ar.Options.UseFragment)
@@ -181,12 +198,11 @@ func (ar *AuthenticationRequest) Redirect(url *url.URL, params interface{}, frag
 }
 
 type AuthenticationSuccessResponse struct {
-	//AccessToken  string `url:"access_token"`
-	//RefreshToken string `url:"refresh_token"`
-	TokenType string `url:"token_type"`
-	IDToken   string `url:"id_token"`
-	State     string `url:"state"`
-	ExpiresIn int64  `url:"expires_in"`
+	AccessToken string `url:"access_token,omitempty"`
+	TokenType   string `url:"token_type,omitempty"`
+	IDToken     string `url:"id_token"`
+	State       string `url:"state"`
+	ExpiresIn   int64  `url:"expires_in,omitempty"`
 }
 
 type AuthenticationErrorResponse struct {
