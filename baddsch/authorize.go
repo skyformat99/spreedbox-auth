@@ -14,7 +14,7 @@ import (
 	"github.com/gorilla/schema"
 )
 
-// curl -v "http://user:password@localhost:7031/api/v1/authorize?response_type=id_token&redirect_url=http://localhost&nonce=123&state=abc&prompt=none"
+// curl -v "http://user:password@localhost:7031/api/v1/authorize?response_type=id_token&redirect_url=http://localhost&nonce=123&state=abc&prompt=none&scope=openid"
 
 var decoder = schema.NewDecoder()
 
@@ -35,25 +35,20 @@ func (doc *AuthorizeDocument) Get(r *http.Request) (int, interface{}, http.Heade
 	// Implemented flow:
 	// Authentication Request
 	// - Implicit flow
-	//   response_type: id_token (MUST)
+	//   response_type: 'id_token' or 'id_token token' (MUST)
 	//   redirect_uri: http://localhost/redirect (MUST)
 	//   nonce: some-random-string (MUST)
 	//   state: another-random-string (MAY)
 	//   prompt: none (MAY)
+	//   scope: openid (MUST) (others allowed)
 	// Authentication Request Validation
 	// Authorization Server Authenticates End-User
 	// Authorization Server Obtains End-User Consent/Authorization
 	// Successful Authentication Response
-	var err error
-	ar := &AuthenticationRequest{}
-	if err = decoder.Decode(ar, r.Form); err != nil {
+	ar, err := NewAuthenticationRequest(r)
+	if err != nil {
 		return 400, err.Error(), nil
 	}
-
-	ar.Options = &AuthenticationRequestOptions{
-		Authorization: r.Header.Get("Authorization"),
-	}
-
 	return ar.Response(doc)
 }
 
@@ -66,6 +61,8 @@ type AuthenticationRequestOptions struct {
 	RedirectURL   *url.URL
 	UseFragment   bool
 	Authorization string
+	ResponseTypes map[string]bool
+	Scopes        map[string]bool
 }
 
 type AuthenticationRequest struct {
@@ -78,7 +75,31 @@ type AuthenticationRequest struct {
 	Prompt       string                        `schema:"prompt"`
 }
 
+func NewAuthenticationRequest(r *http.Request) (*AuthenticationRequest, error) {
+	ar := &AuthenticationRequest{}
+	if err := decoder.Decode(ar, r.Form); err != nil {
+		return nil, err
+	}
+
+	ar.Options = &AuthenticationRequestOptions{
+		Authorization: r.Header.Get("Authorization"),
+		ResponseTypes: make(map[string]bool),
+		Scopes:        make(map[string]bool),
+	}
+	for _, rt := range strings.Split(ar.Scope, " ") {
+		ar.Options.ResponseTypes[rt] = true
+	}
+	for _, scope := range strings.Split(ar.Scope, " ") {
+		ar.Options.Scopes[scope] = true
+	}
+
+	return ar, nil
+}
+
 func (ar *AuthenticationRequest) Validate() (error, string) {
+	if _, ok := ar.Options.Scopes["openid"]; !ok {
+		return errors.New("invalid_scope"), "must have openid scope"
+	}
 	switch ar.ResponseType {
 	case "id_token":
 		fallthrough
@@ -136,24 +157,26 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 		err, errDescription = ar.Authorize()
 	}
 
-	claims := &jwt.Claims{
-		Iss:   doc.IssueIdentifier,
-		Sub:   "todo-user-id",
-		Aud:   "client-id",
-		Nonce: ar.Nonce,
-	}
-
 	var accessToken *jwt.Token
-	switch ar.ResponseType {
-	case "id_token token":
-		// Create access token
-	}
-
 	var idToken *jwt.Token
-	idToken, err = jwt.Encode(&jwt.Header{
-		Alg: doc.TokenAlg,
-		Typ: doc.TokenTyp,
-	}, claims, &doc.TokenDuration, accessToken, doc.TokenPrivateKey)
+	if err == nil {
+		claims := &jwt.Claims{
+			Iss:   doc.IssueIdentifier,
+			Sub:   "todo-user-id",
+			Aud:   "client-id",
+			Nonce: ar.Nonce,
+		}
+
+		switch ar.ResponseType {
+		case "id_token token":
+			// Create access token
+		}
+
+		idToken, err = jwt.Encode(&jwt.Header{
+			Alg: doc.TokenAlg,
+			Typ: doc.TokenTyp,
+		}, claims, &doc.TokenDuration, accessToken, doc.TokenPrivateKey)
+	}
 
 	if err != nil {
 		errResponse := &AuthenticationErrorResponse{
