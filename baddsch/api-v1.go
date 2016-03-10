@@ -13,19 +13,19 @@ type APIv1 struct {
 
 // NewAPIv1 creates a APIv1 instance return it as API interface
 // optionally adding the API resources to a API holder.
-func NewAPIv1(holder APIResourceHolder, config phoenix.Config) (API, error) {
+func NewAPIv1(holder APIResourceHolder, config phoenix.Config, authProvider AuthProvider) (API, error) {
 	api := &APIv1{
 		Config: config,
 	}
 	var err error
 	if holder != nil {
-		err = api.AddResources(holder)
+		err = api.AddResources(holder, authProvider)
 	}
 	return api, err
 }
 
 // AddResources adds the resources of this API to the API holder.
-func (api *APIv1) AddResources(holder APIResourceHolder) error {
+func (api *APIv1) AddResources(holder APIResourceHolder, authProvider AuthProvider) error {
 	holder.AddResource(&JSONDocument{map[string]interface{}{
 		"owncloud_endpoint":          "https://{{.Host}}/index.php",
 		"owncloud-spreedme_endpoint": "https://{{.Host}}/index.php/apps/spreedme",
@@ -52,6 +52,7 @@ func (api *APIv1) AddResources(holder APIResourceHolder) error {
 		TokenDuration:         time.Duration(api.Config.GetIntDefault("auth", "tokenDuration", 3600)) * time.Second,
 		TokenAccessTokenClaim: tokenAccessTokenClaim,
 		TokenPrivateKey:       tokenPrivateKey,
+		AuthProvider:          authProvider,
 	}, "/authorize")
 
 	// Validate support.

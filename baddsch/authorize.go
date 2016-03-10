@@ -27,6 +27,7 @@ type AuthorizeDocument struct {
 	TokenDuration         time.Duration
 	TokenAccessTokenClaim string
 	TokenPrivateKey       crypto.PrivateKey
+	AuthProvider          AuthProvider
 }
 
 // Get is the HTTP response handler for requests to the authorization endpoint.
@@ -98,7 +99,7 @@ func NewAuthenticationRequest(r *http.Request) (*AuthenticationRequest, error) {
 	return ar, nil
 }
 
-func (ar *AuthenticationRequest) Validate() (error, string) {
+func (ar *AuthenticationRequest) Validate(doc *AuthorizeDocument) (error, string) {
 	if _, ok := ar.Options.Scopes["openid"]; !ok {
 		return errors.New("invalid_scope"), "must have openid scope"
 	}
@@ -132,7 +133,7 @@ func (ar *AuthenticationRequest) Validate() (error, string) {
 	return nil, ""
 }
 
-func (ar *AuthenticationRequest) Authenticate() (error, string) {
+func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (error, string) {
 	if ar.Options.Authorization == "" {
 		return errors.New("invalid_request"), "authorization header required"
 	}
@@ -140,19 +141,6 @@ func (ar *AuthenticationRequest) Authenticate() (error, string) {
 	auth := strings.SplitN(ar.Options.Authorization, " ", 2)
 	if len(auth) != 2 {
 		return errors.New("invalid_request"), "authorization header is invalid"
-	}
-
-	var userID string
-	switch auth[0] {
-	case "Basic":
-		if basic, err := base64.StdEncoding.DecodeString(auth[1]); err == nil {
-			userID = strings.SplitN(string(basic), ":", 2)[0]
-		} else {
-			return errors.New("invalid_request"), err.Error()
-		}
-		log.Printf("authentication request for: %v\n", userID)
-	default:
-		return errors.New("invalid_request"), "invalid authorization type"
 	}
 
 	if ar.clientID == "" && ar.RedirectURL != "" {
@@ -164,12 +152,44 @@ func (ar *AuthenticationRequest) Authenticate() (error, string) {
 		return errors.New("invalid_client"), "client id cannot be empty"
 	}
 
+	var requestedUserID string
+	var authProvided AuthProvided
+	var err error
+	switch auth[0] {
+	case "Basic":
+		if basic, err := base64.StdEncoding.DecodeString(auth[1]); err == nil {
+			requestedUserID = strings.SplitN(string(basic), ":", 2)[0]
+		} else {
+			return errors.New("invalid_request"), err.Error()
+		}
+		log.Printf("authentication request for: %v\n", requestedUserID)
+		if doc.AuthProvider != nil {
+			authProvided, err = doc.AuthProvider.RequestAuth(ar.Options.Authorization)
+		}
+	default:
+		return errors.New("invalid_request"), "invalid authorization type"
+	}
+
+	if err != nil {
+		log.Println("authorization provider failure", err.Error())
+		return errors.New("server_error"), "authorization provider failure"
+	}
+
 	// Set gathered data.
-	ar.userID = userID
+	if doc.AuthProvider != nil {
+		log.Println("authentication provided:", authProvided.Status(), authProvided.UserID())
+		if authProvided != nil && authProvided.Status() {
+			ar.userID = authProvided.UserID()
+		} else {
+			return errors.New("access_denied"), "authorization failed"
+		}
+	} else {
+		ar.userID = requestedUserID
+	}
 	return nil, ""
 }
 
-func (ar *AuthenticationRequest) Authorize() (error, string) {
+func (ar *AuthenticationRequest) Authorize(doc *AuthorizeDocument) (error, string) {
 	return nil, ""
 }
 
@@ -181,12 +201,12 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 	ar.Options.RedirectURL = redirectURL
 
 	var errDescription string
-	err, errDescription = ar.Validate()
+	err, errDescription = ar.Validate(doc)
 	if err == nil {
-		err, errDescription = ar.Authenticate()
+		err, errDescription = ar.Authenticate(doc)
 	}
 	if err == nil {
-		err, errDescription = ar.Authorize()
+		err, errDescription = ar.Authorize(doc)
 	}
 
 	var accessToken *jwt.Token

@@ -6,10 +6,12 @@ import (
 	"log"
 	"os"
 
+	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch"
+	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch/owncloud"
+
 	"github.com/gorilla/mux"
 	"github.com/strukturag/phoenix"
 	"github.com/strukturag/sloth"
-	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch"
 	"golang.struktur.de/spreedbox/spreedbox-go/common"
 )
 
@@ -22,15 +24,32 @@ func runner(runtime phoenix.Runtime) error {
 		common.SetupLogfile(logFilename)
 	}
 
-	router := mux.NewRouter()
+	// Authentication provider.
+	var authProvider baddsch.AuthProvider
+	switch runtime.GetStringDefault("provider", "provider", "") {
+	case "owncloud":
+		if owncloudURL, err := runtime.GetString("provider", "owncloudURL"); err == nil {
+			if owncloudURL == "" {
+				return fmt.Errorf("owncloudURL cannot be empty")
+			}
+			authProvider, _ = owncloud.NewProvider(owncloudURL)
+		} else {
+			return err
+		}
+	default:
+		return fmt.Errorf("provider required")
+	}
+
 	// HTTP listener support.
+	router := mux.NewRouter()
 	if _, err := runtime.GetString("http", "listen"); err == nil {
 		runtime.DefaultHTTPHandler(router)
 	}
 
+	// Add HTTP API.
 	api := sloth.NewAPI()
 	api.SetMux(router.PathPrefix("/api/v1/").Subrouter())
-	_, err := baddsch.NewAPIv1(api, runtime)
+	_, err := baddsch.NewAPIv1(api, runtime, authProvider)
 	if err != nil {
 		return err
 	}

@@ -12,5 +12,5 @@ type APIResourceHolder interface {
 
 // API is a flexible way to define an API and combining it with a holder.
 type API interface {
-	AddResources(holder APIResourceHolder) error
+	AddResources(holder APIResourceHolder, authProvider AuthProvider) error
 }

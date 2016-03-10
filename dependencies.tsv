@@ -7,4 +7,5 @@ github.com/gorilla/schema	git	ddf016c1034e9cfd3eb5b276f626c8f04d765f6f	2016-02-2
 github.com/strukturag/httputils	git	afbf05c71ac03ee7989c96d033a9571ba4ded468	2014-07-02T01:35:33Z
 github.com/strukturag/phoenix	git	c3429c4e93588d848606263a7f96f91c90e43178	2016-03-02T12:52:52Z
 github.com/strukturag/sloth	git	cf2004f37d804871226692d46ebc77f18e97cc04	2015-04-21T10:09:37Z
+golang.struktur.de/sling	git	99a49cc6d1747cc5f428b3d97c2488f5af789244	2016-03-10T16:00:37Z
 golang.struktur.de/spreedbox/spreedbox-go	git	6c0bc50b4a0451bac5b65408cdf84b80ad349e34	2016-02-01T15:01:54Z
