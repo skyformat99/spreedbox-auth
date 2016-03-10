@@ -44,11 +44,12 @@ func (api *APIv1) AddResources(holder APIResourceHolder) error {
 	}
 	tokenAlg := api.Config.GetStringDefault("auth", "tokenAlg", "RS256")
 	holder.AddResource(&AuthorizeDocument{
-		IssueIdentifier: api.Config.GetStringDefault("auth", "tokenIssueIdentifier", "https://self-issued.me"),
-		TokenAlg:        tokenAlg,
-		TokenTyp:        api.Config.GetStringDefault("auth", "tokenTyp", "JWT"),
-		TokenDuration:   time.Duration(api.Config.GetIntDefault("auth", "tokenDuration", 3600)) * time.Second,
-		TokenPrivateKey: tokenPrivateKey,
+		IssueIdentifier:       api.Config.GetStringDefault("auth", "tokenIssueIdentifier", "https://self-issued.me"),
+		TokenAlg:              tokenAlg,
+		TokenTyp:              api.Config.GetStringDefault("auth", "tokenTyp", "JWT"),
+		TokenDuration:         time.Duration(api.Config.GetIntDefault("auth", "tokenDuration", 3600)) * time.Second,
+		TokenAccessTokenClaim: api.Config.GetStringDefault("auth", "tokenAccessTokenClaim", "baddsch/at"),
+		TokenPrivateKey:       tokenPrivateKey,
 	}, "/authorize")
 
 	// Validate support.

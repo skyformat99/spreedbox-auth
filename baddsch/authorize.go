@@ -23,11 +23,12 @@ var decoder = schema.NewDecoder()
 // provide the OpenID connect authorization endpoint with authentication
 // requests.
 type AuthorizeDocument struct {
-	IssueIdentifier string
-	TokenTyp        string
-	TokenAlg        string
-	TokenDuration   time.Duration
-	TokenPrivateKey crypto.PrivateKey
+	IssueIdentifier       string
+	TokenTyp              string
+	TokenAlg              string
+	TokenDuration         time.Duration
+	TokenAccessTokenClaim string
+	TokenPrivateKey       crypto.PrivateKey
 }
 
 // Get is the HTTP response handler for requests to the authorization endpoint.
@@ -195,7 +196,9 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 				Nonce:         ar.Nonce,
 				PrivateClaims: make(map[string]interface{}),
 			}
-			accessTokenClaims.PrivateClaims["spreedbox/at"] = true
+			if doc.TokenAccessTokenClaim != "" {
+				accessTokenClaims.PrivateClaims[doc.TokenAccessTokenClaim] = true
+			}
 			accessToken, err = jwt.Encode(tokenHeader, accessTokenClaims, &doc.TokenDuration, doc.TokenPrivateKey)
 		}
 
