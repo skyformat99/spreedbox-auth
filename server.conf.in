@@ -41,7 +41,7 @@ tokenPrivateKey = ./server.key
 ## When using the ownCloud provider, this defines the URL to the
 ## Spreed.ME app inside ownCloud and is required to use the owncloud
 ## authorization provider.
-# owncloudURL = http://localhost/index.php/apps/spreedme
+# owncloudURL = https://127.0.0.1/index.php/apps/spreedme
 ## Skip SSL validation for ownCloud authorization provider connections. Defaults to false (means SSL is validated).
 # owncloudSkipSSLValidation = false
 ## Maximum number of parallel ownCloud connections. Defaults to 4.
