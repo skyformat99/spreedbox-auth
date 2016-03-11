@@ -26,11 +26,18 @@ func NewAPIv1(holder APIResourceHolder, config phoenix.Config, authProvider Auth
 
 // AddResources adds the resources of this API to the API holder.
 func (api *APIv1) AddResources(holder APIResourceHolder, authProvider AuthProvider) error {
+	tokenAlg := api.Config.GetStringDefault("auth", "tokenAlg", "RS256")
+
 	holder.AddResource(&JSONDocument{map[string]interface{}{
-		"owncloud_endpoint":          "https://{{.Host}}/index.php",
-		"owncloud-spreedme_endpoint": "https://{{.Host}}/index.php/apps/spreedme",
-		"spreed-webrtc_endpoint":     "https://{{.Host}}/webrtc",
-		"authorization_endpoint":     "https://{{.Host}}/auth/authorize",
+		"owncloud_endpoint":                           "https://{{.Host}}/index.php",
+		"owncloud-spreedme_endpoint":                  "https://{{.Host}}/index.php/apps/spreedme",
+		"spreed-webrtc_endpoint":                      "https://{{.Host}}/webrtc",
+		"authorization_endpoint":                      "https://{{.Host}}/auth/authorize",
+		"scopes_supported":                            []string{"openid"},
+		"response_types_supported":                    []string{"id_token", "token id_token", "token"},
+		"id_token_signing_alg_values_supported":       []string{tokenAlg},
+		"request_object_signing_alg_values_supported": []string{tokenAlg},
+		"subject_types_supported":                     []string{"pairwise"},
 	}}, "/well-known/spreed-configuration")
 
 	// Authorize support.
@@ -43,7 +50,6 @@ func (api *APIv1) AddResources(holder APIResourceHolder, authProvider AuthProvid
 		return err
 	}
 	tokenIssueIdentifier := api.Config.GetStringDefault("auth", "tokenIssueIdentifier", "https://self-issued.me")
-	tokenAlg := api.Config.GetStringDefault("auth", "tokenAlg", "RS256")
 	tokenAccessTokenClaim := api.Config.GetStringDefault("auth", "tokenAccessTokenClaim", "baddsch/at")
 	holder.AddResource(&AuthorizeDocument{
 		IssueIdentifier:       tokenIssueIdentifier,
