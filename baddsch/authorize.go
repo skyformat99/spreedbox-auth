@@ -133,14 +133,14 @@ func (ar *AuthenticationRequest) Validate(doc *AuthorizeDocument) (error, string
 	return nil, ""
 }
 
-func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (error, string) {
+func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvided, error, string) {
 	if ar.Options.Authorization == "" {
-		return errors.New("invalid_request"), "authorization header required"
+		return nil, errors.New("invalid_request"), "authorization header required"
 	}
 
 	auth := strings.SplitN(ar.Options.Authorization, " ", 2)
 	if len(auth) != 2 {
-		return errors.New("invalid_request"), "authorization header is invalid"
+		return nil, errors.New("invalid_request"), "authorization header is invalid"
 	}
 
 	if ar.clientID == "" && ar.RedirectURL != "" {
@@ -149,7 +149,7 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (error, st
 		ar.clientID = ar.RedirectURL
 	}
 	if ar.clientID == "" {
-		return errors.New("invalid_client"), "client id cannot be empty"
+		return nil, errors.New("invalid_client"), "client id cannot be empty"
 	}
 
 	var requestedUserID string
@@ -160,19 +160,19 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (error, st
 		if basic, err := base64.StdEncoding.DecodeString(auth[1]); err == nil {
 			requestedUserID = strings.SplitN(string(basic), ":", 2)[0]
 		} else {
-			return errors.New("invalid_request"), err.Error()
+			return nil, errors.New("invalid_request"), err.Error()
 		}
 		log.Printf("authentication request for: %v\n", requestedUserID)
 		if doc.AuthProvider != nil {
 			authProvided, err = doc.AuthProvider.Authorization(ar.Options.Authorization)
 		}
 	default:
-		return errors.New("invalid_request"), "invalid authorization type"
+		return nil, errors.New("invalid_request"), "invalid authorization type"
 	}
 
 	if err != nil {
 		log.Println("authorization provider failure", err.Error())
-		return errors.New("server_error"), "authorization provider failure"
+		return nil, errors.New("server_error"), "authorization provider failure"
 	}
 
 	// Set gathered data.
@@ -181,16 +181,23 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (error, st
 		if authProvided != nil && authProvided.Status() {
 			ar.userID = authProvided.UserID()
 		} else {
-			return errors.New("access_denied"), "authorization failed"
+			return nil, errors.New("access_denied"), "authentication failed"
 		}
 	} else {
 		ar.userID = requestedUserID
 	}
-	return nil, ""
+	return authProvided, nil, ""
 }
 
-func (ar *AuthenticationRequest) Authorize(doc *AuthorizeDocument) (error, string) {
-	return nil, ""
+func (ar *AuthenticationRequest) Authorize(doc *AuthorizeDocument, authProvided AuthProvided) (AuthProvided, error, string) {
+	if authProvided == nil {
+		authProvided = &NoAuthProvided{}
+	}
+
+	if success := authProvided.Authorize(); success {
+		return authProvided, nil, ""
+	}
+	return authProvided, errors.New("access_denied"), "authorization failed"
 }
 
 func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interface{}, http.Header) {
@@ -200,13 +207,14 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 	}
 	ar.Options.RedirectURL = redirectURL
 
+	var authProvided AuthProvided
 	var errDescription string
 	err, errDescription = ar.Validate(doc)
 	if err == nil {
-		err, errDescription = ar.Authenticate(doc)
-	}
-	if err == nil {
-		err, errDescription = ar.Authorize(doc)
+		authProvided, err, errDescription = ar.Authenticate(doc)
+		if err == nil {
+			authProvided, err, errDescription = ar.Authorize(doc, authProvided)
+		}
 	}
 
 	var accessToken *jwt.Token
@@ -224,7 +232,7 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 				Sub:           ar.userID,
 				Aud:           ar.clientID,
 				Nonce:         ar.Nonce,
-				PrivateClaims: make(map[string]interface{}),
+				PrivateClaims: authProvided.PrivateClaims(),
 			}
 			if doc.TokenAccessTokenClaim != "" {
 				accessTokenClaims.PrivateClaims[doc.TokenAccessTokenClaim] = true
@@ -240,7 +248,7 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 					Sub:           ar.userID,
 					Aud:           ar.clientID,
 					Nonce:         ar.Nonce,
-					PrivateClaims: make(map[string]interface{}),
+					PrivateClaims: authProvided.PrivateClaims(),
 				}
 				if accessToken != nil {
 					// Add at_hash claim as defined in

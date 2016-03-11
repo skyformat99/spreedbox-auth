@@ -67,6 +67,17 @@ func (ap *authProvided) UserID() string {
 	return ap.userConfig.ID
 }
 
+func (ap *authProvided) PrivateClaims() map[string]interface{} {
+	claims := make(map[string]interface{})
+	claims["oc/is_admin"] = ap.userConfig.IsAdmin
+	claims["oc/display_name"] = ap.userConfig.DisplayName
+	return claims
+}
+
+func (ap *authProvided) Authorize() bool {
+	return ap.Status() == true
+}
+
 type ProviderConfig struct {
 	skipSSLValidation bool
 	poolSize          int
