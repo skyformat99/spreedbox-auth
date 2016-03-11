@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch/jwt"
@@ -93,7 +94,8 @@ func (vr *ValidationRequest) Response(doc *ValidateDocument) (int, interface{}, 
 		"Pragma":        {"no-cache"},
 	}
 	if err, errDescription := vr.Validate(doc); err != nil {
-		return 403, fmt.Sprintf("%s: %s", err.Error(), errDescription), headers
+		headers.Add("WWW-Authenticate", fmt.Sprintf("error=%s, error_description=%s", strconv.QuoteToASCII(err.Error()), strconv.QuoteToASCII(errDescription)))
+		return 401, err.Error(), headers
 	}
 
 	return 200, "ok", headers
