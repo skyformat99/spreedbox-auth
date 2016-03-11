@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"golang.struktur.de/spreedbox/spreedbox-auth/auth"
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch"
 	"golang.struktur.de/spreedbox/spreedbox-auth/provider/owncloud"
 
@@ -25,14 +26,6 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) Serve(runtime phoenix.Runtime) (err error) {
-	log.Println("connecting events")
-
-	s.ec, err = bus.EstablishConnection(nil)
-	if err != nil {
-		return err
-	}
-	defer s.ec.Close()
-
 	// Authentication provider.
 	var authProvider baddsch.AuthProvider
 	switch runtime.GetStringDefault("provider", "provider", "") {
@@ -53,6 +46,13 @@ func (s *Server) Serve(runtime phoenix.Runtime) (err error) {
 		return fmt.Errorf("provider required")
 	}
 
+	log.Println("connecting events")
+	s.ec, err = bus.EstablishConnection(nil)
+	if err != nil {
+		return err
+	}
+	defer s.ec.Close()
+
 	// HTTP listener support.
 	router := mux.NewRouter()
 	if _, err := runtime.GetString("http", "listen"); err == nil {
@@ -68,12 +68,19 @@ func (s *Server) Serve(runtime phoenix.Runtime) (err error) {
 	}
 
 	// Add NATS API.
-	s.ec.Subscribe("auth.validate", s.validate)
+	s.ec.Subscribe(auth.AuthSubjectValidate(), s.validate)
 	log.Println("events connected and subscribed")
 
 	return runtime.Start()
 }
 
-func (s *Server) validate(msg interface{}) {
-	log.Println("validate", msg)
+func (s *Server) validate(subject, reply string, msg *auth.ValidateRequest) {
+	log.Println("validate", subject, reply)
+
+	if reply != "" {
+		replyData := &auth.ValidateReply{
+			Success: false,
+		}
+		s.ec.Publish(reply, replyData)
+	}
 }
