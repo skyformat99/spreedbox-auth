@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch"
-	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch/owncloud"
+	"golang.struktur.de/spreedbox/spreedbox-auth/provider/owncloud"
 
 	"github.com/gorilla/mux"
 	"github.com/strukturag/phoenix"
