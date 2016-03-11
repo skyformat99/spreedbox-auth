@@ -19,15 +19,18 @@ type Provider struct {
 	serviceURL *url.URL
 }
 
-func NewProvider(serviceURLString string, handler ProvidedHandler) (*Provider, error) {
+func NewProvider(serviceURLString string, handler ProvidedHandler, config baddsch.AuthProviderConfig) (*Provider, error) {
 	serviceURL, err := url.Parse(serviceURLString)
 	if err != nil {
 		return nil, err
 	}
-	config := sling.Config{
-		SkipSSLValidation: true,
+	c := sling.Config{}
+	if config != nil {
+		c.SkipSSLValidation = config.SkipSSLValidation()
+		c.PoolSize = config.PoolSize()
 	}
-	client, err := sling.NewHTTP(fmt.Sprintf("%s://%s", serviceURL.Scheme, serviceURL.Host), config)
+
+	client, err := sling.NewHTTP(fmt.Sprintf("%s://%s", serviceURL.Scheme, serviceURL.Host), c)
 	if err != nil {
 		return nil, err
 	}

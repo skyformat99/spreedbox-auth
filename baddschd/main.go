@@ -32,7 +32,11 @@ func runner(runtime phoenix.Runtime) error {
 			if owncloudURL == "" {
 				return fmt.Errorf("owncloudURL cannot be empty")
 			}
-			authProvider, _ = owncloud.NewProvider(owncloudURL)
+			conf := owncloud.NewProviderConfig(
+				runtime.GetBoolDefault("provider", "owncloudSkipSSLValidation", owncloud.DefaultProviderSkipSSLValidation),
+				runtime.GetIntDefault("provider", "owncloudConnectionPoolSize", owncloud.DefaultProviderPoolSize),
+			)
+			authProvider, _ = owncloud.NewProvider(owncloudURL, conf)
 		} else {
 			return err
 		}

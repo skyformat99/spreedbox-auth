@@ -8,10 +8,16 @@ import (
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch/httpauth"
 )
 
-var configEndpoint = "api/v1/user/config"
+var DefaultConfigEndpoint = "api/v1/user/config"
+var DefaultProviderPoolSize = 4
+var DefaultProviderSkipSSLValidation = false
 
-func NewProvider(url string) (baddsch.AuthProvider, error) {
-	fullURL := fmt.Sprintf("%s/%s", url, configEndpoint)
+func NewProvider(url string, config *ProviderConfig) (baddsch.AuthProvider, error) {
+	fullURL := fmt.Sprintf("%s/%s", url, DefaultConfigEndpoint)
+	if config == nil {
+		config = NewProviderConfig(DefaultProviderSkipSSLValidation, DefaultProviderPoolSize)
+	}
+
 	return httpauth.NewProvider(fullURL, func(message []byte, err error) (baddsch.AuthProvided, error) {
 		switch err {
 		case nil:
@@ -20,7 +26,7 @@ func NewProvider(url string) (baddsch.AuthProvider, error) {
 			fallthrough
 		case httpauth.ErrStatusUnauthorized:
 			// Owncloud returns auth errors as 401.
-			return NewOwncloudAuthProvided(nil), nil
+			return newAuthProvided(nil), nil
 		default:
 			return nil, err
 		}
@@ -31,8 +37,8 @@ func NewProvider(url string) (baddsch.AuthProvider, error) {
 			return nil, err
 		}
 
-		return NewOwncloudAuthProvided(&response), nil
-	})
+		return newAuthProvided(&response), nil
+	}, config)
 }
 
 type spreedmePluginUserConfig struct {
@@ -42,21 +48,41 @@ type spreedmePluginUserConfig struct {
 	IsAdmin     bool   `json:"is_admin"`
 }
 
-type OwncloudAuthProvided struct {
+type authProvided struct {
 	userConfig *spreedmePluginUserConfig
 }
 
-func NewOwncloudAuthProvided(config *spreedmePluginUserConfig) *OwncloudAuthProvided {
+func newAuthProvided(config *spreedmePluginUserConfig) *authProvided {
 	if config == nil {
 		config = &spreedmePluginUserConfig{}
 	}
-	return &OwncloudAuthProvided{config}
+	return &authProvided{config}
 }
 
-func (ap *OwncloudAuthProvided) Status() bool {
+func (ap *authProvided) Status() bool {
 	return ap.userConfig.Success
 }
 
-func (ap *OwncloudAuthProvided) UserID() string {
+func (ap *authProvided) UserID() string {
 	return ap.userConfig.ID
+}
+
+type ProviderConfig struct {
+	skipSSLValidation bool
+	poolSize          int
+}
+
+func NewProviderConfig(skipSSLValidation bool, poolSize int) *ProviderConfig {
+	return &ProviderConfig{skipSSLValidation, poolSize}
+}
+
+func (apc *ProviderConfig) SkipSSLValidation() bool {
+	return apc.skipSSLValidation
+}
+
+func (apc *ProviderConfig) PoolSize() int {
+	if apc.poolSize <= 0 {
+		return DefaultProviderPoolSize
+	}
+	return apc.poolSize
 }
