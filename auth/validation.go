@@ -22,7 +22,6 @@ func NewValidationClient() *ValidationClient {
 }
 
 func (vc *ValidationClient) Validate(auth string, tokenType string) error {
-	// TODO(longsleep): switch on auth and do authorization via NATS.
 	if vc.ec == nil {
 		log.Println("auth validate without connection")
 		return errors.New("temporarily_unavailable")

@@ -32,6 +32,7 @@ type AuthorizeDocument struct {
 
 // Get is the HTTP response handler for requests to the authorization endpoint.
 func (doc *AuthorizeDocument) Get(r *http.Request) (int, interface{}, http.Header) {
+	log.Println("authorize http")
 	// http://openid.net/specs/openid-connect-core-1_0.html
 	// Implemented flow:
 	// Authentication Request
@@ -286,6 +287,7 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 		if errDescription != "" {
 			errResponse.ErrorDescription = errDescription
 		}
+		log.Println("authorize failed http", err, errDescription)
 		return ar.Redirect(ar.Options.RedirectURL, errResponse, ar.Options.UseFragment)
 	}
 
@@ -306,6 +308,7 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 		successResponse.IDToken = idToken.Raw
 	}
 
+	log.Println("authorize success http")
 	return ar.Redirect(ar.Options.RedirectURL, successResponse, ar.Options.UseFragment)
 }
 

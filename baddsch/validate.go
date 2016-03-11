@@ -101,5 +101,6 @@ func (vr *ValidationRequest) Response(doc *ValidateDocument) (int, interface{}, 
 		return 401, err.Error(), headers
 	}
 
+	log.Println("validation success http")
 	return 200, "ok", headers
 }

@@ -87,6 +87,7 @@ func (s *Server) validate(subject, reply string, msg *auth.ValidateRequest) {
 		err, errDescription := request.Validate(s.api.ValidateDocument)
 		replyData := &auth.ValidateReply{}
 		if err == nil {
+			log.Println("validate success", subject, reply)
 			replyData.Success = true
 		} else {
 			log.Println("validate failed", subject, reply, err, errDescription)
