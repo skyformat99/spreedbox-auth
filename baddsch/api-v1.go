@@ -13,7 +13,7 @@ type APIv1 struct {
 
 // NewAPIv1 creates a APIv1 instance return it as API interface
 // optionally adding the API resources to a API holder.
-func NewAPIv1(holder APIResourceHolder, config phoenix.Config, authProvider AuthProvider) (API, error) {
+func NewAPIv1(holder APIResourceHolder, config phoenix.Config, authProvider AuthProvider) (*APIv1, error) {
 	api := &APIv1{
 		Config: config,
 	}
