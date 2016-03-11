@@ -78,9 +78,22 @@ func (s *Server) validate(subject, reply string, msg *auth.ValidateRequest) {
 	log.Println("validate", subject, reply)
 
 	if reply != "" {
-		replyData := &auth.ValidateReply{
-			Success: false,
+		request := &baddsch.ValidationRequest{
+			Options: &baddsch.ValidationRequestOptions{
+				Authorization: msg.Authorization,
+			},
+			TokenType: msg.TokenType,
 		}
+		err, errDescription := request.Validate(s.api.ValidateDocument)
+		replyData := &auth.ValidateReply{}
+		if err == nil {
+			replyData.Success = true
+		} else {
+			log.Println("validate failed", subject, reply, err, errDescription)
+			replyData.Error = err.Error()
+			replyData.Message = errDescription
+		}
+
 		s.ec.Publish(reply, replyData)
 	}
 }

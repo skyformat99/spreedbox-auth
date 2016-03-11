@@ -4,7 +4,11 @@ import (
 	"fmt"
 )
 
-const BUS_AUTH_SUBJECT = "auth"
+const (
+	BUS_AUTH_SUBJECT = "auth"
+	AccessTokenType  = "access_token"
+	IDTokenType      = "id_token"
+)
 
 func AuthSubjectValidate() string {
 	return fmt.Sprintf("%s.validate", BUS_AUTH_SUBJECT)
@@ -17,5 +21,6 @@ type ValidateRequest struct {
 
 type ValidateReply struct {
 	Success bool   `json:"success"`
-	Message string `json:"message"`
+	Error   string `json:"error,omitempty"`
+	Message string `json:"message,omitempty"`
 }
