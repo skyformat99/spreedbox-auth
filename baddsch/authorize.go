@@ -164,7 +164,7 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (error, st
 		}
 		log.Printf("authentication request for: %v\n", requestedUserID)
 		if doc.AuthProvider != nil {
-			authProvided, err = doc.AuthProvider.RequestAuth(ar.Options.Authorization)
+			authProvided, err = doc.AuthProvider.Authorization(ar.Options.Authorization)
 		}
 	default:
 		return errors.New("invalid_request"), "invalid authorization type"

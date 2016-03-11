@@ -38,7 +38,7 @@ func NewProvider(serviceURLString string, handler ProvidedHandler) (*Provider, e
 	}, nil
 }
 
-func (provider *Provider) RequestAuth(authorization string) (baddsch.AuthProvided, error) {
+func (provider *Provider) Authorization(authorization string) (baddsch.AuthProvided, error) {
 	request := sling.JSONRequest("GET", provider.serviceURL.Path)
 
 	var responseData json.RawMessage

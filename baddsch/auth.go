@@ -1,7 +1,7 @@
 package baddsch
 
 type AuthProvider interface {
-	RequestAuth(string) (AuthProvided, error)
+	Authorization(string) (AuthProvided, error)
 }
 
 type AuthProvided interface {
