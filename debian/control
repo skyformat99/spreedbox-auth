@@ -41,6 +41,7 @@ Provides: spreedbox-baddschd
 Depends:
  ${shlibs:Depends},
  ${misc:Depends},
+ libressl-apps | openssl,
  spreedbox-service,
  spreedbox-webserver (>= 0.1.0)
 Description: Provides a Spreedbox auth service.

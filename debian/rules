@@ -18,5 +18,7 @@ override_dh_install:
 	sed -i 's|^# provider =\(.*\)|provider = owncloud|;' $(CURDIR)/debian/spreedbox-authd/etc/spreedbox/baddschd.conf
 	sed -i 's|^# owncloudURL =\(.*\)|owncloudURL = https://127.0.0.1/index.php/apps/spreedme|;' $(CURDIR)/debian/spreedbox-authd/etc/spreedbox/baddschd.conf
 	sed -i 's|^# owncloudSkipSSLValidation =\(.*\)|owncloudSkipSSLValidation = owncloud|;' $(CURDIR)/debian/spreedbox-authd/etc/spreedbox/baddschd.conf
+	sed -i 's|^tokenPrivateKey =\(.*\)|tokenPrivateKey = /etc/spreedbox/auth/keys/privkey.pem|;' $(CURDIR)/debian/spreedbox-authd/etc/spreedbox/baddschd.conf
 	install -m644 -D $(CURDIR)/debian/upstream.conf $(CURDIR)/debian/spreedbox-authd/etc/nginx/conf.d/spreedbox-authd.conf
 	install -m644 -D $(CURDIR)/debian/nginx.conf $(CURDIR)/debian/spreedbox-authd/etc/nginx/spreedbox.d/spreedbox-authd.conf
+	install -m755 -D $(CURDIR)/debian/firstboot.sh $(CURDIR)/debian/spreedbox-authd/etc/firstboot/firstboot.d/10generate-auth-keys

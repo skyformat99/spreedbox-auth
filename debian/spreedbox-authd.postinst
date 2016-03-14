@@ -4,6 +4,30 @@ set -e
 
 case "$1" in
     configure)
+        SPREEDBOX_SERVICE_USER='spreedbox-authd'
+        SPREEDBOX_SERVICE_GROUP='spreedbox-service'
+        KEY_BITS=4096
+        KEYS="/etc/spreedbox/auth/keys"
+
+        if [ -x "/usr/bin/libressl-openssl" ]; then
+            OPENSSL="/usr/bin/libressl-openssl"
+        else
+            OPENSSL="/usr/bin/openssl"
+        fi
+
+        if [ ! -e "$KEYS/privkey.pem" ]; then
+            now=$(date +%s)
+            mkdir -p "$KEYS"
+            # Create new private key.
+            echo "Generating RSA keypair ..."
+            oldumask=$(umask)
+            umask 077
+            $OPENSSL genrsa -out "$KEYS/privkey-$now.pem" $KEY_BITS
+            umask $oldumask
+            chown $SPREEDBOX_SERVICE_USER:SPREEDBOX_SERVICE_GROUP "$KEYS/privkey-$now.pem" || true
+            ln -sf privkey-$now.pem "$KEYS/privkey.pem"
+        fi
+
         if [ -e "/etc/init.d/nginx" ]; then
             invoke-rc.d nginx reload || true
         fi
