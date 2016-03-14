@@ -51,6 +51,7 @@ func (api *APIv1) AddResources(holder APIResourceHolder, authProvider AuthProvid
 		"id_token_signing_alg_values_supported":       []string{tokenAlg},
 		"request_object_signing_alg_values_supported": []string{tokenAlg},
 		"subject_types_supported":                     []string{"pairwise"},
+		"spreedbox-setup_endpoint":                    "https://{{.Host}}/spreedbox-setup", // TODO(longsleep): Add a registry for services.
 	}}
 
 	api.AuthorizeDocument = &AuthorizeDocument{
