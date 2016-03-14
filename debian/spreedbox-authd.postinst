@@ -24,7 +24,7 @@ case "$1" in
             umask 077
             $OPENSSL genrsa -out "$KEYS/privkey-$now.pem" $KEY_BITS
             umask $oldumask
-            chown $SPREEDBOX_SERVICE_USER:SPREEDBOX_SERVICE_GROUP "$KEYS/privkey-$now.pem" || true
+            chown $SPREEDBOX_SERVICE_USER:$SPREEDBOX_SERVICE_GROUP "$KEYS/privkey-$now.pem" || true
             ln -sf privkey-$now.pem "$KEYS/privkey.pem"
         fi
 
