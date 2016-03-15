@@ -80,7 +80,8 @@ func (s *Server) validate(subject, reply string, msg *auth.ValidateRequest) {
 	if reply != "" {
 		request := &baddsch.ValidationRequest{
 			Options: &baddsch.ValidationRequestOptions{
-				Authorization: msg.Authorization,
+				Authorization:  msg.Authorization,
+				RequiredClaims: msg.RequiredClaims,
 			},
 			TokenType: msg.TokenType,
 		}

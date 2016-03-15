@@ -15,8 +15,9 @@ func AuthSubjectValidate() string {
 }
 
 type ValidateRequest struct {
-	Authorization string `json:"authorization"`
-	TokenType     string `json:token_type,omitempty"`
+	Authorization  string                 `json:"authorization"`
+	RequiredClaims map[string]interface{} `json:"required_claims,omitempty"`
+	TokenType      string                 `json:"token_type,omitempty"`
 }
 
 type ValidateReply struct {

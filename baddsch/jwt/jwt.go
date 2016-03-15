@@ -4,6 +4,7 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 
 	jwtgo "github.com/dgrijalva/jwt-go"
@@ -117,14 +118,44 @@ func (c *Claims) CheckString(name string, expected string) bool {
 
 func (c *Claims) CheckBool(name string, expected bool) bool {
 	if c.PrivateClaims == nil {
-		return false
+		// No private claims, return false if expected is true.
+		return expected == false
 	}
 	if v, ok := c.PrivateClaims[name]; ok {
 		if b, found := v.(bool); found {
+			// Return true if value is the expected value.
 			return b == expected
 		}
+		// Return false if the value is not of the expected type.
+		return false
+	}
+	// Claim not set, return false if the expected value is true.
+	return expected == false
+}
+
+func (c *Claims) CheckInterface(name string, expected interface{}) bool {
+	if b, ok := expected.(bool); ok {
+		// Special case for bool where we also accept the claim to
+		// be met if the expected value is false and the claim is
+		// not set.
+		return c.CheckBool(name, b)
+	}
+	if c.PrivateClaims == nil {
+		return false
+	}
+	if v, ok := c.PrivateClaims[name]; ok {
+		return reflect.DeepEqual(v, expected)
 	}
 	return false
+}
+
+func (c *Claims) ValidateRequiredClaims(requiredClaims map[string]interface{}) error {
+	for k, v := range requiredClaims {
+		if valid := c.CheckInterface(k, v); !valid {
+			return fmt.Errorf("claim validation failed: %s", k)
+		}
+	}
+	return nil
 }
 
 func Encode(header *Header, claims *Claims, duration *time.Duration, key crypto.PrivateKey) (*Token, error) {

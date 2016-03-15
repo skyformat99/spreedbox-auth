@@ -35,7 +35,8 @@ func (doc *ValidateDocument) Post(r *http.Request) (int, interface{}, http.Heade
 }
 
 type ValidationRequestOptions struct {
-	Authorization string
+	Authorization  string
+	RequiredClaims map[string]interface{}
 }
 
 type ValidationRequest struct {
@@ -71,6 +72,10 @@ func (vr *ValidationRequest) Validate(doc *ValidateDocument) (error, string) {
 		return errors.New("validation_failed"), err.Error()
 	}
 
+	if !token.Valid {
+		return errors.New("invalid_token"), "Token is not valid"
+	}
+
 	switch vr.TokenType {
 	case "access_token":
 		if doc.TokenAccessTokenClaim != "" && !token.Claims.CheckBool(doc.TokenAccessTokenClaim, true) {
@@ -84,10 +89,13 @@ func (vr *ValidationRequest) Validate(doc *ValidateDocument) (error, string) {
 		return errors.New("invalid_request"), "Invalid token_type"
 	}
 
-	if token.Valid {
-		return nil, ""
+	if vr.Options.RequiredClaims != nil {
+		if err := token.Claims.ValidateRequiredClaims(vr.Options.RequiredClaims); err != nil {
+			return errors.New("access_denied"), err.Error()
+		}
 	}
-	return errors.New("invalid_token"), "Token is not valid"
+
+	return nil, ""
 }
 
 func (vr *ValidationRequest) Response(doc *ValidateDocument) (int, interface{}, http.Header) {
