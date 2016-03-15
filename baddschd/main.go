@@ -6,10 +6,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/gorilla/mux"
+	baddsch "golang.struktur.de/spreedbox/spreedbox-auth/baddsch/server"
+
 	"github.com/strukturag/phoenix"
-	"github.com/strukturag/sloth"
-	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch"
 	"golang.struktur.de/spreedbox/spreedbox-go/common"
 )
 
@@ -22,20 +21,15 @@ func runner(runtime phoenix.Runtime) error {
 		common.SetupLogfile(logFilename)
 	}
 
-	router := mux.NewRouter()
-	// HTTP listener support.
-	if _, err := runtime.GetString("http", "listen"); err == nil {
-		runtime.DefaultHTTPHandler(router)
+	server, err := baddsch.NewServer()
+	if err != nil {
+		return err
 	}
 
-	api := sloth.NewAPI()
-	api.SetMux(router.PathPrefix("/api/v1/").Subrouter())
-	baddsch.NewAPIv1(api)
-
-	return runtime.Start()
+	return server.Serve(runtime)
 }
 
-func boot() error {
+func main() {
 	configPath := flag.String("c", defaultConfig, "Configuration file.")
 	showVersion := flag.Bool("v", false, "Display version number and exit.")
 	memprofile := flag.String("memprofile", "", "Write memory profile to this file.")
@@ -49,10 +43,10 @@ func boot() error {
 
 	if *showHelp {
 		flag.Usage()
-		return nil
+		os.Exit(0)
 	} else if *showVersion {
 		fmt.Printf("Version %s\n", appVersion)
-		return nil
+		os.Exit(0)
 	}
 
 	logFilename = common.GetLogfilename()
@@ -60,16 +54,15 @@ func boot() error {
 		common.SetupLogfile(logFilename)
 	}
 
-	return phoenix.NewServer("baddschd", appVersion).
+	err := phoenix.NewServer("baddschd", appVersion).
 		Config(configPath).
 		Log(&logFilename).
 		CpuProfile(cpuprofile).
 		MemProfile(memprofile).
 		Run(runner)
-}
-
-func main() {
-	if err := boot(); err != nil {
-		log.Fatal(err)
+	if err != nil {
+		log.Fatal(err.Error())
 	}
+
+	log.Print("exiting")
 }
