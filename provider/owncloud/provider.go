@@ -69,9 +69,10 @@ func (ap *authProvided) UserID() string {
 }
 
 func (ap *authProvided) PrivateClaims() map[string]interface{} {
-	claims := make(map[string]interface{})
-	claims[owncloud.DisplayNameClaimID] = ap.userConfig.DisplayName
-	claims[owncloud.IsAdminClaimID] = ap.userConfig.IsAdmin
+	claims := map[string]interface{}{
+		owncloud.DisplayNameClaimID: ap.userConfig.DisplayName,
+		owncloud.IsAdminClaimID:     ap.userConfig.IsAdmin,
+	}
 	return claims
 }
 

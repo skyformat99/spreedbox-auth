@@ -77,25 +77,28 @@ func (s *Server) Serve(runtime phoenix.Runtime) (err error) {
 func (s *Server) validate(subject, reply string, msg *auth.ValidateRequest) {
 	log.Println("validate", subject, reply)
 
-	if reply != "" {
-		request := &baddsch.ValidationRequest{
-			Options: &baddsch.ValidationRequestOptions{
-				Authorization:  msg.Authorization,
-				RequiredClaims: msg.RequiredClaims,
-			},
-			TokenType: msg.TokenType,
-		}
-		err, errDescription := request.Validate(s.api.ValidateDocument)
-		replyData := &auth.ValidateReply{}
-		if err == nil {
-			log.Println("validate success", subject, reply)
-			replyData.Success = true
-		} else {
-			log.Println("validate failed", subject, reply, err, errDescription)
-			replyData.Error = err.Error()
-			replyData.Message = errDescription
-		}
-
-		s.ec.Publish(reply, replyData)
+	if reply == "" {
+		// Do nothing when no reply subject was given.
+		return
 	}
+
+	request := &baddsch.ValidationRequest{
+		Options: &baddsch.ValidationRequestOptions{
+			Authorization:  msg.Authorization,
+			RequiredClaims: msg.RequiredClaims,
+		},
+		TokenType: msg.TokenType,
+	}
+	err, errDescription := request.Validate(s.api.ValidateDocument)
+	replyData := &auth.ValidateReply{}
+	if err == nil {
+		log.Println("validate success", subject, reply)
+		replyData.Success = true
+	} else {
+		log.Println("validate failed", subject, reply, err, errDescription)
+		replyData.Error = err.Error()
+		replyData.Message = errDescription
+	}
+
+	s.ec.Publish(reply, replyData)
 }

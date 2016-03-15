@@ -17,7 +17,7 @@ type Header struct {
 	Typ string `json:"typ"`
 }
 
-func NewHeader(data map[string]interface{}) (*Header, error) {
+func NewHeader(data map[string]interface{}) *Header {
 	h := &Header{}
 	for k, v := range data {
 		switch k {
@@ -31,7 +31,7 @@ func NewHeader(data map[string]interface{}) (*Header, error) {
 			}
 		}
 	}
-	return h, nil
+	return h
 }
 
 func (h *Header) SigningMethod() (jwtgo.SigningMethod, error) {
@@ -57,7 +57,7 @@ type Claims struct {
 	PrivateClaims map[string]interface{} `json:"-"`
 }
 
-func NewClaims(data map[string]interface{}) (*Claims, error) {
+func NewClaims(data map[string]interface{}) *Claims {
 	c := &Claims{
 		PrivateClaims: make(map[string]interface{}),
 	}
@@ -101,13 +101,10 @@ func NewClaims(data map[string]interface{}) (*Claims, error) {
 			c.PrivateClaims[k] = v
 		}
 	}
-	return c, nil
+	return c
 }
 
 func (c *Claims) CheckString(name string, expected string) bool {
-	if c.PrivateClaims == nil {
-		return false
-	}
 	if v, ok := c.PrivateClaims[name]; ok {
 		if s, found := v.(string); found {
 			return s == expected
@@ -117,10 +114,6 @@ func (c *Claims) CheckString(name string, expected string) bool {
 }
 
 func (c *Claims) CheckBool(name string, expected bool) bool {
-	if c.PrivateClaims == nil {
-		// No private claims, return false if expected is true.
-		return expected == false
-	}
 	if v, ok := c.PrivateClaims[name]; ok {
 		if b, found := v.(bool); found {
 			// Return true if value is the expected value.
@@ -139,9 +132,6 @@ func (c *Claims) CheckInterface(name string, expected interface{}) bool {
 		// be met if the expected value is false and the claim is
 		// not set.
 		return c.CheckBool(name, b)
-	}
-	if c.PrivateClaims == nil {
-		return false
 	}
 	if v, ok := c.PrivateClaims[name]; ok {
 		return reflect.DeepEqual(v, expected)
@@ -163,6 +153,9 @@ func Encode(header *Header, claims *Claims, duration *time.Duration, key crypto.
 	if err != nil {
 		return nil, err
 	}
+	// NOTE(longsleep): We go 10 seconds to the past to allow
+	// clients with slightly wrong time to still validate a fresh
+	// token successfully.
 	now := time.Now().Add(-10 * time.Second)
 	if claims.Iat == 0 {
 		claims.Iat = now.Unix()
@@ -192,10 +185,8 @@ func Encode(header *Header, claims *Claims, duration *time.Duration, key crypto.
 		token.Claims["nonce"] = claims.Nonce
 	}
 
-	if claims.PrivateClaims != nil {
-		for k, v := range claims.PrivateClaims {
-			token.Claims[k] = v
-		}
+	for k, v := range claims.PrivateClaims {
+		token.Claims[k] = v
 	}
 
 	raw, err := token.SignedString(key)
@@ -222,8 +213,8 @@ func Decode(encodedToken string, validator Validator) (*Token, error) {
 	var header *Header
 	var claims *Claims
 	token, err := jwtgo.Parse(encodedToken, func(token *jwtgo.Token) (interface{}, error) {
-		header, _ = NewHeader(token.Header)
-		claims, _ = NewClaims(token.Claims)
+		header = NewHeader(token.Header)
+		claims = NewClaims(token.Claims)
 		return validator(header, claims)
 	})
 	return &Token{

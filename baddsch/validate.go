@@ -25,7 +25,7 @@ func (doc *ValidateDocument) Get(r *http.Request) (int, interface{}, http.Header
 	log.Println("validation http")
 	vr, err := NewValidationRequest(r)
 	if err != nil {
-		return 400, err.Error(), nil
+		return http.StatusBadRequest, err.Error(), nil
 	}
 	return vr.Response(doc)
 }
@@ -85,6 +85,7 @@ func (vr *ValidationRequest) Validate(doc *ValidateDocument) (error, string) {
 	case "":
 		fallthrough
 	case "id_token":
+		// Nothing to be done for ID tokens.
 	default:
 		return errors.New("invalid_request"), "Invalid token_type"
 	}
@@ -106,9 +107,9 @@ func (vr *ValidationRequest) Response(doc *ValidateDocument) (int, interface{}, 
 	if err, errDescription := vr.Validate(doc); err != nil {
 		log.Println("validation failed http", err, errDescription)
 		headers.Add("WWW-Authenticate", fmt.Sprintf("error=%s, error_description=%s", strconv.QuoteToASCII(err.Error()), strconv.QuoteToASCII(errDescription)))
-		return 401, err.Error(), headers
+		return http.StatusUnauthorized, err.Error(), headers
 	}
 
 	log.Println("validation success http")
-	return 200, "ok", headers
+	return http.StatusOK, "ok", headers
 }

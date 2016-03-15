@@ -49,7 +49,7 @@ func (doc *AuthorizeDocument) Get(r *http.Request) (int, interface{}, http.Heade
 	// Successful Authentication Response
 	ar, err := NewAuthenticationRequest(r)
 	if err != nil {
-		return 400, err.Error(), nil
+		return http.StatusBadRequest, err.Error(), nil
 	}
 	return ar.Response(doc)
 }
@@ -139,6 +139,7 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvi
 		return nil, errors.New("invalid_request"), "authorization header required"
 	}
 
+	// Split authorization header value which is of format "Type Value".
 	auth := strings.SplitN(ar.Options.Authorization, " ", 2)
 	if len(auth) != 2 {
 		return nil, errors.New("invalid_request"), "authorization header is invalid"
@@ -178,8 +179,8 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvi
 
 	// Set gathered data.
 	if doc.AuthProvider != nil {
-		log.Println("authentication provided:", authProvided.Status(), authProvided.UserID())
 		if authProvided != nil && authProvided.Status() {
+			log.Println("authentication provided:", authProvided.Status(), authProvided.UserID())
 			ar.userID = authProvided.UserID()
 		} else {
 			return nil, errors.New("access_denied"), "authentication failed"
@@ -192,11 +193,13 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvi
 
 func (ar *AuthenticationRequest) Authorize(doc *AuthorizeDocument, authProvided AuthProvided) (AuthProvided, error, string) {
 	if authProvided == nil {
+		// Create dummy false auth which will always fail all checks if
+		// we do not have another provided value at this point.
 		authProvided = &NoAuthProvided{}
-	}
-
-	if success := authProvided.Authorize(); success {
-		return authProvided, nil, ""
+	} else {
+		if success := authProvided.Authorize(); success {
+			return authProvided, nil, ""
+		}
 	}
 	return authProvided, errors.New("access_denied"), "authorization failed"
 }
@@ -204,96 +207,96 @@ func (ar *AuthenticationRequest) Authorize(doc *AuthorizeDocument, authProvided 
 func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interface{}, http.Header) {
 	redirectURL, err := url.Parse(ar.RedirectURL)
 	if err != nil {
-		return 400, err.Error(), nil
+		return http.StatusBadRequest, err.Error(), nil
 	}
 	ar.Options.RedirectURL = redirectURL
 
-	var authProvided AuthProvided
 	var errDescription string
-	err, errDescription = ar.Validate(doc)
-	if err == nil {
-		authProvided, err, errDescription = ar.Authenticate(doc)
-		if err == nil {
-			authProvided, err, errDescription = ar.Authorize(doc, authProvided)
-		}
-	}
-
+	var authProvided AuthProvided
+	var tokenHeader *jwt.Header
 	var accessToken *jwt.Token
 	var idToken *jwt.Token
-	if err == nil {
-		tokenHeader := &jwt.Header{
-			Alg: doc.TokenAlg,
-			Typ: doc.TokenTyp,
-		}
 
-		if _, ok := ar.Options.ResponseTypes["token"]; ok {
-			// Create access token
-			accessTokenClaims := &jwt.Claims{
-				Iss:           doc.IssueIdentifier,
-				Sub:           ar.userID,
-				Aud:           ar.clientID,
-				Nonce:         ar.Nonce,
-				PrivateClaims: authProvided.PrivateClaims(),
-			}
-			if doc.TokenAccessTokenClaim != "" {
-				accessTokenClaims.PrivateClaims[doc.TokenAccessTokenClaim] = true
-			}
-			accessToken, err = jwt.Encode(tokenHeader, accessTokenClaims, &doc.TokenDuration, doc.TokenPrivateKey)
-		}
+	if err, errDescription = ar.Validate(doc); err != nil {
+		goto done
+	}
+	if authProvided, err, errDescription = ar.Authenticate(doc); err != nil {
+		goto done
+	}
+	if authProvided, err, errDescription = ar.Authorize(doc, authProvided); err != nil {
+		goto done
+	}
 
-		if err == nil {
-			if _, ok := ar.Options.ResponseTypes["id_token"]; ok {
-				// Create ID token
-				idTokenClaims := &jwt.Claims{
-					Iss:           doc.IssueIdentifier,
-					Sub:           ar.userID,
-					Aud:           ar.clientID,
-					Nonce:         ar.Nonce,
-					PrivateClaims: authProvided.PrivateClaims(),
-				}
-				if accessToken != nil {
-					// Add at_hash claim as defined in
-					// http://openid.net/specs/openid-connect-core-1_0.html#CodeValidation
-					var hash crypto.Hash
-					switch tokenHeader.Alg {
-					case "RS256":
-						hash = crypto.SHA256
-					case "RS384":
-						hash = crypto.SHA384
-					case "RS512":
-						hash = crypto.SHA512
-					}
-					if hash.Available() {
-						idTokenClaims.PrivateClaims["at_hash"] = LeftmostHashBase64URLEncoding([]byte(accessToken.Raw), hash)
-					} else {
-						log.Println("selected hashing alg not available", tokenHeader.Alg)
-						err = errors.New("server_error")
-					}
-				}
-				if err == nil {
-					idToken, err = jwt.Encode(tokenHeader, idTokenClaims, &doc.TokenDuration, doc.TokenPrivateKey)
-				}
-			}
+	tokenHeader = &jwt.Header{
+		Alg: doc.TokenAlg,
+		Typ: doc.TokenTyp,
+	}
+
+	if _, ok := ar.Options.ResponseTypes["token"]; ok {
+		// Create access token
+		accessTokenClaims := &jwt.Claims{
+			Iss:           doc.IssueIdentifier,
+			Sub:           ar.userID,
+			Aud:           ar.clientID,
+			Nonce:         ar.Nonce,
+			PrivateClaims: authProvided.PrivateClaims(),
+		}
+		if doc.TokenAccessTokenClaim != "" {
+			accessTokenClaims.PrivateClaims[doc.TokenAccessTokenClaim] = true
+		}
+		if accessToken, err = jwt.Encode(tokenHeader, accessTokenClaims, &doc.TokenDuration, doc.TokenPrivateKey); err != nil {
+			goto done
 		}
 	}
 
+	if _, ok := ar.Options.ResponseTypes["id_token"]; ok {
+		// Create ID token
+		idTokenClaims := &jwt.Claims{
+			Iss:           doc.IssueIdentifier,
+			Sub:           ar.userID,
+			Aud:           ar.clientID,
+			Nonce:         ar.Nonce,
+			PrivateClaims: authProvided.PrivateClaims(),
+		}
+		if accessToken != nil {
+			// Add at_hash claim as defined in
+			// http://openid.net/specs/openid-connect-core-1_0.html#CodeValidation
+			var hash crypto.Hash
+			switch tokenHeader.Alg {
+			case "RS256":
+				hash = crypto.SHA256
+			case "RS384":
+				hash = crypto.SHA384
+			case "RS512":
+				hash = crypto.SHA512
+			}
+			if hash.Available() {
+				idTokenClaims.PrivateClaims["at_hash"] = LeftmostHashBase64URLEncoding([]byte(accessToken.Raw), hash)
+			} else {
+				log.Println("selected hashing alg not available", tokenHeader.Alg)
+				err = errors.New("server_error")
+				goto done
+			}
+		}
+
+		if idToken, err = jwt.Encode(tokenHeader, idTokenClaims, &doc.TokenDuration, doc.TokenPrivateKey); err != nil {
+			goto done
+		}
+	}
+
+done:
 	if err != nil {
 		errResponse := &AuthenticationErrorResponse{
-			Error: err.Error(),
-		}
-		if ar.State != "" {
-			errResponse.State = ar.State
-		}
-		if errDescription != "" {
-			errResponse.ErrorDescription = errDescription
+			Error:            err.Error(),
+			State:            ar.State,
+			ErrorDescription: errDescription,
 		}
 		log.Println("authorize failed http", err, errDescription)
 		return ar.Redirect(ar.Options.RedirectURL, errResponse, ar.Options.UseFragment)
 	}
 
-	successResponse := &AuthenticationSuccessResponse{}
-	if ar.State != "" {
-		successResponse.State = ar.State
+	successResponse := &AuthenticationSuccessResponse{
+		State: ar.State,
 	}
 
 	if _, ok := ar.Options.ResponseTypes["token"]; ok {
@@ -320,7 +323,7 @@ func (ar *AuthenticationRequest) Redirect(url *url.URL, params interface{}, frag
 		url.RawQuery = v.Encode()
 	}
 
-	return 302, "", http.Header{
+	return http.StatusFound, "", http.Header{
 		"Location":      {url.String()},
 		"Cache-Control": {"no-store"},
 		"Pragma":        {"no-cache"},
@@ -339,8 +342,4 @@ type AuthenticationErrorResponse struct {
 	Error            string `url:"error"`
 	ErrorDescription string `url:"error_description,omitempty"`
 	State            string `url:"state,omitempty"`
-}
-
-func init() {
-	decoder.IgnoreUnknownKeys(true)
 }

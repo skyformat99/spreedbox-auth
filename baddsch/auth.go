@@ -27,7 +27,7 @@ func (nap *NoAuthProvided) UserID() string {
 }
 
 func (nap *NoAuthProvided) PrivateClaims() map[string]interface{} {
-	return make(map[string]interface{})
+	return nil
 }
 
 func (nap *NoAuthProvided) Authorize() bool {
