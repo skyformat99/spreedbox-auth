@@ -2,6 +2,8 @@ package auth
 
 import (
 	"fmt"
+
+	"golang.struktur.de/spreedbox/spreedbox-auth/auth/owncloud"
 )
 
 const (
@@ -9,6 +11,8 @@ const (
 	AccessTokenType  = "access_token"
 	IDTokenType      = "id_token"
 )
+
+var IsAdminClaim = owncloud.IsAdminClaim
 
 func AuthSubjectValidate() string {
 	return fmt.Sprintf("%s.validate", BUS_AUTH_SUBJECT)

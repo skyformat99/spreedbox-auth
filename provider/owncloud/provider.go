@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"golang.struktur.de/spreedbox/spreedbox-auth/auth/owncloud"
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch"
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch/httpauth"
 )
@@ -69,8 +70,8 @@ func (ap *authProvided) UserID() string {
 
 func (ap *authProvided) PrivateClaims() map[string]interface{} {
 	claims := make(map[string]interface{})
-	claims["oc/is_admin"] = ap.userConfig.IsAdmin
-	claims["oc/display_name"] = ap.userConfig.DisplayName
+	claims[owncloud.DisplayNameClaimID] = ap.userConfig.DisplayName
+	claims[owncloud.IsAdminClaimID] = ap.userConfig.IsAdmin
 	return claims
 }
 
