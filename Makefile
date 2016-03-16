@@ -7,7 +7,7 @@ SYSTEM_GOPATH = /usr/share/gocode/src/
 DIST := $(PWD)/dist
 DIST_SRC := $(DIST)/src
 
-FOLDERS = $(shell find -mindepth 1 -maxdepth 1 -type d -not -path "*.git" -not -path "*debian" -not -path "*vendor" -not -path "*doc" -not -path "*test")
+FOLDERS = $(shell find -mindepth 1 -maxdepth 1 -type d -not -path "*.git" -not -path "*debian" -not -path "*vendor" -not -path "*doc" -not -path "*test" -not -path "*scripts")
 
 all:
 
