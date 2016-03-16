@@ -1,3 +1,9 @@
+spreedbox-auth (0.1.1) trusty; urgency=medium
+
+  * Use helper to generate key so we can avoid service start issues in firstboot.
+
+ -- Simon Eisenmann <simon@struktur.de>  Wed, 16 Mar 2016 11:08:49 +0100
+
 spreedbox-auth (0.1.0) trusty; urgency=medium
 
   * Implemented authorize API as a subset of OpenID Connect 1.0.
