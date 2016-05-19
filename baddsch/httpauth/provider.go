@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch"
 
@@ -41,12 +42,22 @@ func NewProvider(serviceURLString string, handler ProvidedHandler, config baddsc
 	}, nil
 }
 
-func (provider *Provider) Authorization(authorization string) (baddsch.AuthProvided, error) {
+func (provider *Provider) Authorization(authorization string, cookies []*http.Cookie) (baddsch.AuthProvided, error) {
 	request := sling.JSONRequest("GET", provider.serviceURL.Path)
+
+	if authorization != "" {
+		request.Header("Authorization", authorization)
+	}
+	if len(cookies) > 0 {
+		var encodedCookies []string
+		for _, cookie := range cookies {
+			encodedCookies = append(encodedCookies, cookie.String())
+		}
+		request.Header("Cookie", strings.Join(encodedCookies, "; "))
+	}
 
 	var responseData json.RawMessage
 	request.
-		Header("Authorization", authorization).
 		StatusError(http.StatusUnauthorized, ErrStatusUnauthorized).
 		StatusError(http.StatusForbidden, ErrStatusForbidden).
 		Response(&responseData)

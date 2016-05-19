@@ -1,7 +1,11 @@
 package baddsch
 
+import (
+	"net/http"
+)
+
 type AuthProvider interface {
-	Authorization(string) (AuthProvided, error)
+	Authorization(string, []*http.Cookie) (AuthProvided, error)
 }
 
 type AuthProviderConfig interface {
