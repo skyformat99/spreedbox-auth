@@ -119,8 +119,23 @@ func (ar *AuthenticationRequest) Validate(doc *AuthorizeDocument) (error, string
 		return errors.New("unsupported_response_type"), ""
 	}
 
-	if ar.Options.RedirectURL.Scheme != "http" || ar.Options.RedirectURL.Host != "localhost" {
-		return errors.New("invalid_request"), "redirect_url must start with http://localhost"
+	for {
+		if ar.Options.RedirectURL.Scheme == "https" {
+			if ar.Options.RedirectURL.Host == ar.Request.Host {
+				// Allow all targets on the host which was used to access us.
+				// NOTE(longsleep): This is a implicit white list which does
+				// not have a path component.
+				break
+			}
+		}
+
+		if ar.Options.RedirectURL.Scheme == "http" && ar.Options.RedirectURL.Host == "localhost" {
+			// http://localhost allowed for native applications.
+			break
+		}
+
+		// Everything else is invalid.
+		return errors.New("invalid_request"), "unknown redirect_url"
 	}
 
 	if ar.Nonce == "" {
@@ -135,15 +150,8 @@ func (ar *AuthenticationRequest) Validate(doc *AuthorizeDocument) (error, string
 }
 
 func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvided, error, string) {
-	if ar.Options.Authorization == "" {
-		return nil, errors.New("invalid_request"), "authorization header required"
-	}
-
 	// Split authorization header value which is of format "Type Value".
 	auth := strings.SplitN(ar.Options.Authorization, " ", 2)
-	if len(auth) < 1 {
-		return nil, errors.New("invalid_request"), "authorization header is invalid"
-	}
 
 	if ar.clientID == "" && ar.RedirectURL != "" {
 		// We support self issued mode as defined in http://openid.net/specs/openid-connect-core-1_0.html#SelfIssued
@@ -174,6 +182,8 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvi
 		}
 	case "Cookie":
 		// curl -v -H Authorization "Cookie" --cookie "blah=lala" "http://localhost:7031/api/v1/authorize?response_type=id_token&redirect_url=http://localhost&nonce=123&state=abc&prompt=none&scope=openid"
+		fallthrough
+	case "":
 		cookies := ar.Request.Cookies()
 		if len(cookies) == 0 {
 			return nil, errors.New("invalid_request"), "missing cookie"
