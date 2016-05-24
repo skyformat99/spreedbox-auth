@@ -1,5 +1,3 @@
-console.log("spreedox-auth loading ...");
-
 (function (root, factory) {
 	"use strict";
 
@@ -101,66 +99,54 @@ console.log("spreedox-auth loading ...");
 		var data = base64URLDecodeJSON(parts[1]);
 
 		// Validate.
-		while (true) {
-			if (data.iss !== 'https://self-issued.me') {
-				console.warn('iss validation failed');
-				break;
-			}
-			if (data.aud !== currentURL) {
-				console.warn('aud validation failed');
-				break;
-			}
-			if (data.nonce !== nonce) {
-				console.warn('nonce validation failed');
-				break;
-			}
-			var now = (new Date().getTime() / 1000);
-			if (data.exp <= now) {
-				console.warn('exp validation failed');
-				break;
-			}
-			var away = Math.abs(now - data.iat);
-			if (away >= 120) {
-				console.warn('iat validation failed');
-				break;
-			}
-			if (token_hash) {
-				if (header.typ !== 'JWT') {
-					console.warn('header typ unsupported', header.typ);
-					break;
-				}
-
-				// Validate left-most hash (http://openid.net/specs/openid-connect-core-1_0.html#CodeValidation).
-				var mode;
-				switch (header.alg) {
-				case 'RS256':
-					mode = 'SHA-256';
-					break;
-				case 'RS384':
-					mode = 'SHA-384';
-					break;
-				case 'RS512':
-					mode = 'SHA-512';
-					break;
-				}
-				if (!mode) {
-					console.warn('header alg unsupported', header.alg);
-					break;
-				}
-				var shaObj = new jsSHA(mode, 'TEXT');
-				shaObj.update(token);
-				var token_hash_check = base64URLEncode(shaObj.getHash('BYTES').substr(0, 16));
-				if (token_hash !== token_hash_check) {
-					console.warn('access token hash validation failed');
-					break;
-				}
+		if (data.iss !== 'https://self-issued.me') {
+			throw 'iss validation failed';
+		}
+		if (data.aud !== currentURL) {
+			throw 'aud validation failed';
+		}
+		if (data.nonce !== nonce) {
+			throw 'nonce validation failed';
+		}
+		var now = (new Date().getTime() / 1000);
+		if (data.exp <= now) {
+			throw 'exp validation failed';
+		}
+		var away = Math.abs(now - data.iat);
+		if (away >= 120) {
+			throw 'iat validation failed';
+		}
+		if (token_hash) {
+			if (header.typ !== 'JWT') {
+				throw 'header typ unsupported: ' + header.typ;
 			}
 
-			// Ok.
-			return data;
+			// Validate left-most hash (http://openid.net/specs/openid-connect-core-1_0.html#CodeValidation).
+			var mode;
+			switch (header.alg) {
+			case 'RS256':
+				mode = 'SHA-256';
+				break;
+			case 'RS384':
+				mode = 'SHA-384';
+				break;
+			case 'RS512':
+				mode = 'SHA-512';
+				break;
+			}
+			if (!mode) {
+				throw 'header alg unsupported: ' + header.alg;
+			}
+			var shaObj = new jsSHA(mode, 'TEXT');
+			shaObj.update(token);
+			var token_hash_check = base64URLEncode(shaObj.getHash('BYTES').substr(0, 16));
+			if (token_hash !== token_hash_check) {
+				throw 'access token hash validation failed';
+			}
 		}
 
-		return null;
+		// Ok.
+		return data;
 	}
 
 	function parseHash(kill) {
@@ -179,7 +165,6 @@ console.log("spreedox-auth loading ...");
 	};
 
 	function spreedboxAuth(opts) {
-		console.log("spreedbox-auth run ...");
 		var options = {};
 		var key;
 		for (key in defaultOptions) {
@@ -201,40 +186,62 @@ console.log("spreedox-auth loading ...");
 		// Check parameters.
 		if (params.error) {
 			// Have error -> abort and trigger error handler.
-			console.error('spreedbox-auth failed', params.error, params.error_description);
 			if (options.onError) {
 				options.onError(params);
+			} else {
+				throw 'spreedbox-auth failed: ' + params.error + ' - ' + params.error_description;
 			}
 
 			return;
 		} else if (params.state) {
 			// Have state, means it is a response, check everything.
 			var state = getAndClearStoredState();
-			if (params.state !== state) {
-				console.error('spreedbox-auth invalid state');
-				if (options.onError) {
-					options.onError(null);
+			var err;
+			while (true) {
+
+				if (params.state !== state) {
+					err = 'invalid state';
+					break;
 				}
-				return;
+
+				// Validate and decode tokens.
+				var nonce = getAndClearStoredNonce();
+				var at_hash = null;
+				if (params.id_token) {
+					params.id_token_raw = params.id_token;
+					try {
+						params.id_token = parseAndValidateJWT(params.id_token_raw, nonce);
+					} catch(e) {
+						err = e;
+						break;
+					}
+					if (params.id_token) {
+						at_hash = params.id_token.at_hash;
+					} else {
+						// Invalid ID token automatically mark access token as invalid as well.
+						params.access_token_raw = params.access_token;
+						params.access_token = null;
+					}
+				}
+				if (params.access_token) {
+					params.access_token_raw = params.access_token;
+					try {
+						params.access_token = parseAndValidateJWT(params.access_token_raw, nonce, at_hash);
+					} catch(e) {
+						err = e;
+						break;
+					}
+				}
+
+				break;
 			}
 
-			// Validate and decode tokens.
-			var nonce = getAndClearStoredNonce();
-			var at_hash = null;
-			if (params.id_token) {
-				params.id_token_raw = params.id_token;
-				params.id_token = parseAndValidateJWT(params.id_token_raw, nonce);
-				if (params.id_token) {
-					at_hash = params.id_token.at_hash;
-				} else {
-					// Invalid ID token automatically mark access token as invalid as well.
-					params.access_token_raw = params.access_token;
-					params.access_token = null;
+			if (err) {
+				if (options.onError) {
+					options.onError({error: err})
+					return
 				}
-			}
-			if (params.access_token) {
-				params.access_token_raw = params.access_token;
-				params.access_token = parseAndValidateJWT(params.access_token_raw, nonce, at_hash);
+				throw 'spreedbox-auth error: ' + err;
 			}
 
 			if (options.onSuccess) {

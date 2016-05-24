@@ -1,6 +1,7 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <script src="./lib/sha.js"></script>
 <script src="./scripts/spreedbox-auth.js"></script>
 <script>
@@ -16,8 +17,7 @@
 		link.href = query.target;
 		link.hash = auth.encodeParams(params);
 		if (link.protocol !== 'https:' || link.host !== location.host) {
-			console.error('refusing to redirect to external or insecure');
-			return;
+			throw 'invalid or insecure target';
 		}
 		var url = link.protocol + '//' + link.host + link.pathname + link.search + link.hash;
 
@@ -25,12 +25,37 @@
 	}
 	// Authorize and redirect.
 	auth.authorize({
-		onSuccess: handler,
-		onError: handler
+		onSuccess: function(values) {
+			var params = {};
+			for (var key in values) {
+				if (values.hasOwnProperty(key)) {
+					switch (key) {
+					case 'access_token_raw':
+					case 'id_token_raw':
+						params[key.substr(0, key.length - 4)] = values[key];
+						break;
+					case 'code':
+					case 'token_type':
+					case 'expires_in':
+					case 'state':
+						params[key] = values[key];
+					default:
+						break;
+					}
+				}
+			}
+			handler(params);
+		},
+		onError: function(error) {
+			var params = {
+				error: error.error || 'unknown error',
+				error_description: error.error_description || ''
+			};
+			handler(params);
+		}
 	});
 }(this, this.spreedboxAuth));
 </script>
 </head>
-<body>
-</body>
+<body></body>
 </html>
