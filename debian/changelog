@@ -1,3 +1,15 @@
+spreedbox-auth (0.2.0) trusty; urgency=medium
+
+  * Implement cookie authorization type.
+  * Use Cookie mode by default and allow same origin as redirect_url.
+  * Prepare web API.
+  * Fix Leftmost hash.
+  * Add support for interactive flow in authorize API redirecting to login if provider supports it.
+  * Install and serve static www files.
+  * Remove debug and improve error handling.
+
+ -- Simon Eisenmann <simon@struktur.de>  Tue, 24 May 2016 17:15:43 +0200
+
 spreedbox-auth (0.1.1) trusty; urgency=medium
 
   * Use helper to generate key so we can avoid service start issues in firstboot.
