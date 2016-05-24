@@ -207,7 +207,10 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvi
 			log.Println("authentication provided:", authProvided.Status(), authProvided.UserID())
 			ar.userID = authProvided.UserID()
 		} else {
-			return nil, errors.New("access_denied"), "authentication failed"
+			if ar.Prompt == "none" {
+				return nil, errors.New("login_required"), "login required"
+			}
+			return authProvided, errors.New("access_denied"), "authentication failed"
 		}
 	} else {
 		ar.userID = requestedUserID
@@ -310,6 +313,12 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 
 done:
 	if err != nil {
+		if authProvided != nil {
+			// Error but have authProvided, let it handle it.
+			return authProvided.RedirectError(err, ar)
+		}
+
+		// Return error response.
 		errResponse := &AuthenticationErrorResponse{
 			Error:            err.Error(),
 			State:            ar.State,

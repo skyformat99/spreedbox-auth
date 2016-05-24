@@ -3,7 +3,10 @@ package owncloud
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
 
+	"github.com/google/go-querystring/query"
 	"golang.struktur.de/spreedbox/spreedbox-auth/auth/owncloud"
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch"
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch/httpauth"
@@ -12,11 +15,12 @@ import (
 var DefaultConfigEndpoint = "api/v1/user/config"
 var DefaultProviderPoolSize = 4
 var DefaultProviderSkipSSLValidation = false
+var DefaultProviderLoginFormURL = "/"
 
 func NewProvider(url string, config *ProviderConfig) (baddsch.AuthProvider, error) {
 	fullURL := fmt.Sprintf("%s/%s", url, DefaultConfigEndpoint)
 	if config == nil {
-		config = NewProviderConfig(DefaultProviderSkipSSLValidation, DefaultProviderPoolSize)
+		config = NewProviderConfig(DefaultProviderSkipSSLValidation, DefaultProviderPoolSize, DefaultProviderLoginFormURL)
 	}
 
 	return httpauth.NewProvider(fullURL, func(message []byte, err error) (baddsch.AuthProvided, error) {
@@ -27,7 +31,7 @@ func NewProvider(url string, config *ProviderConfig) (baddsch.AuthProvider, erro
 			fallthrough
 		case httpauth.ErrStatusUnauthorized:
 			// Owncloud returns auth errors as 401.
-			return newAuthProvided(nil), nil
+			return newAuthProvided(config, nil), nil
 		default:
 			return nil, err
 		}
@@ -38,7 +42,7 @@ func NewProvider(url string, config *ProviderConfig) (baddsch.AuthProvider, erro
 			return nil, err
 		}
 
-		return newAuthProvided(&response), nil
+		return newAuthProvided(config, &response), nil
 	}, config)
 }
 
@@ -50,14 +54,15 @@ type spreedmePluginUserConfig struct {
 }
 
 type authProvided struct {
-	userConfig *spreedmePluginUserConfig
+	providerConfig *ProviderConfig
+	userConfig     *spreedmePluginUserConfig
 }
 
-func newAuthProvided(config *spreedmePluginUserConfig) *authProvided {
-	if config == nil {
-		config = &spreedmePluginUserConfig{}
+func newAuthProvided(providerConfig *ProviderConfig, userConfig *spreedmePluginUserConfig) *authProvided {
+	if userConfig == nil {
+		userConfig = &spreedmePluginUserConfig{}
 	}
-	return &authProvided{config}
+	return &authProvided{providerConfig, userConfig}
 }
 
 func (ap *authProvided) Status() bool {
@@ -80,13 +85,37 @@ func (ap *authProvided) Authorize() bool {
 	return ap.Status() == true
 }
 
+func (ap *authProvided) RedirectError(err error, ar *baddsch.AuthenticationRequest) (int, interface{}, http.Header) {
+	if ap.providerConfig.loginFormURL == "" {
+		return http.StatusForbidden, err.Error(), nil
+	}
+
+	url, err := url.Parse(ap.providerConfig.loginFormURL)
+	if err != nil {
+		return http.StatusInternalServerError, err.Error(), nil
+	}
+
+	v, _ := query.Values(&LoginRedirectRequest{
+		RedirectURL: ar.Options.RedirectURL.String(),
+	})
+	url.RawQuery = v.Encode()
+	url.Fragment = "authprovided=1"
+
+	return http.StatusFound, "", http.Header{
+		"Location":      {url.String()},
+		"Cache-Control": {"no-store"},
+		"Pragma":        {"no-cache"},
+	}
+}
+
 type ProviderConfig struct {
 	skipSSLValidation bool
 	poolSize          int
+	loginFormURL      string
 }
 
-func NewProviderConfig(skipSSLValidation bool, poolSize int) *ProviderConfig {
-	return &ProviderConfig{skipSSLValidation, poolSize}
+func NewProviderConfig(skipSSLValidation bool, poolSize int, loginFormURL string) *ProviderConfig {
+	return &ProviderConfig{skipSSLValidation, poolSize, loginFormURL}
 }
 
 func (apc *ProviderConfig) SkipSSLValidation() bool {
@@ -98,4 +127,8 @@ func (apc *ProviderConfig) PoolSize() int {
 		return DefaultProviderPoolSize
 	}
 	return apc.poolSize
+}
+
+type LoginRedirectRequest struct {
+	RedirectURL string `url:"redirect_url"`
 }

@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+<script src="./lib/sha.js"></script>
+<script src="./scripts/spreedbox-auth.js"></script>
+<script>
+(function(root, auth) {
+	"use strict";
+
+	var query = auth.decodeParams(location.search.substring(1));
+	function handler(params) {
+		if (!query.target) {
+			return;
+		}
+		var link = document.createElement('a');
+		link.href = query.target;
+		link.hash = auth.encodeParams(params);
+		if (link.protocol !== 'https:' || link.host !== location.host) {
+			console.error('refusing to redirect to external or insecure');
+			return;
+		}
+		var url = link.protocol + '//' + link.host + link.pathname + link.search + link.hash;
+
+		location.replace(url);
+	}
+	// Authorize and redirect.
+	auth.authorize({
+		onSuccess: handler,
+		onError: handler
+	});
+}(this, this.spreedboxAuth));
+</script>
+</head>
+<body>
+</body>
+</html>
