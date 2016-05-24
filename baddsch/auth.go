@@ -1,7 +1,11 @@
 package baddsch
 
+import (
+	"net/http"
+)
+
 type AuthProvider interface {
-	Authorization(string) (AuthProvided, error)
+	Authorization(string, []*http.Cookie) (AuthProvided, error)
 }
 
 type AuthProviderConfig interface {
@@ -14,6 +18,7 @@ type AuthProvided interface {
 	UserID() string
 	PrivateClaims() map[string]interface{}
 	Authorize() bool
+	RedirectError(error, *AuthenticationRequest) (int, interface{}, http.Header)
 }
 
 type NoAuthProvided struct{}
@@ -32,4 +37,8 @@ func (nap *NoAuthProvided) PrivateClaims() map[string]interface{} {
 
 func (nap *NoAuthProvided) Authorize() bool {
 	return false
+}
+
+func (nap *NoAuthProvided) RedirectError(err error, ar *AuthenticationRequest) (int, interface{}, http.Header) {
+	return http.StatusNotFound, "", nil
 }

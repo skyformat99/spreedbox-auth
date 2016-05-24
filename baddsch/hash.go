@@ -7,7 +7,8 @@ import (
 
 func LeftmostHash(data []byte, hash crypto.Hash) []byte {
 	h := hash.New()
-	hashed := h.Sum(data)
+	h.Write(data)
+	hashed := h.Sum(nil)
 	return hashed[:len(hashed)/2]
 }
 

@@ -15,8 +15,6 @@ import (
 	"github.com/google/go-querystring/query"
 )
 
-// curl -v "http://user:password@localhost:7031/api/v1/authorize?response_type=id_token&redirect_url=http://localhost&nonce=123&state=abc&prompt=none&scope=openid"
-
 // AuthorizeDocument im defines the JSON data to return and receive to
 // provide the OpenID connect authorization endpoint with authentication
 // requests.
@@ -68,6 +66,7 @@ type AuthenticationRequestOptions struct {
 }
 
 type AuthenticationRequest struct {
+	Request      *http.Request                 `schema:"-"`
 	Options      *AuthenticationRequestOptions `schema:"-"`
 	ResponseType string                        `schema:"response_type"`
 	RedirectURL  string                        `schema:"redirect_url"`
@@ -85,6 +84,7 @@ func NewAuthenticationRequest(r *http.Request) (*AuthenticationRequest, error) {
 		return nil, err
 	}
 
+	ar.Request = r
 	ar.Options = &AuthenticationRequestOptions{
 		Authorization: r.Header.Get("Authorization"),
 		ResponseTypes: make(map[string]bool),
@@ -119,8 +119,23 @@ func (ar *AuthenticationRequest) Validate(doc *AuthorizeDocument) (error, string
 		return errors.New("unsupported_response_type"), ""
 	}
 
-	if ar.Options.RedirectURL.Scheme != "http" || ar.Options.RedirectURL.Host != "localhost" {
-		return errors.New("invalid_request"), "redirect_url must start with http://localhost"
+	for {
+		if ar.Options.RedirectURL.Scheme == "https" {
+			if ar.Options.RedirectURL.Host == ar.Request.Host {
+				// Allow all targets on the host which was used to access us.
+				// NOTE(longsleep): This is a implicit white list which does
+				// not have a path component.
+				break
+			}
+		}
+
+		if ar.Options.RedirectURL.Scheme == "http" && ar.Options.RedirectURL.Host == "localhost" {
+			// http://localhost allowed for native applications.
+			break
+		}
+
+		// Everything else is invalid.
+		return errors.New("invalid_request"), "unknown redirect_url"
 	}
 
 	if ar.Nonce == "" {
@@ -135,15 +150,8 @@ func (ar *AuthenticationRequest) Validate(doc *AuthorizeDocument) (error, string
 }
 
 func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvided, error, string) {
-	if ar.Options.Authorization == "" {
-		return nil, errors.New("invalid_request"), "authorization header required"
-	}
-
 	// Split authorization header value which is of format "Type Value".
 	auth := strings.SplitN(ar.Options.Authorization, " ", 2)
-	if len(auth) != 2 {
-		return nil, errors.New("invalid_request"), "authorization header is invalid"
-	}
 
 	if ar.clientID == "" && ar.RedirectURL != "" {
 		// We support self issued mode as defined in http://openid.net/specs/openid-connect-core-1_0.html#SelfIssued
@@ -159,14 +167,30 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvi
 	var err error
 	switch auth[0] {
 	case "Basic":
+		// curl -v "http://user:password@localhost:7031/api/v1/authorize?response_type=id_token&redirect_url=http://localhost&nonce=123&state=abc&prompt=none&scope=openid"
+		if len(auth) != 2 {
+			return nil, errors.New("invalid_request"), "invalid basic value"
+		}
 		if basic, err := base64.StdEncoding.DecodeString(auth[1]); err == nil {
 			requestedUserID = strings.SplitN(string(basic), ":", 2)[0]
 		} else {
 			return nil, errors.New("invalid_request"), err.Error()
 		}
-		log.Printf("authentication request for: %v\n", requestedUserID)
+		log.Printf("basic authentication request for: %s\n", requestedUserID)
 		if doc.AuthProvider != nil {
-			authProvided, err = doc.AuthProvider.Authorization(ar.Options.Authorization)
+			authProvided, err = doc.AuthProvider.Authorization(ar.Options.Authorization, nil)
+		}
+	case "Cookie":
+		// curl -v -H Authorization "Cookie" --cookie "blah=lala" "http://localhost:7031/api/v1/authorize?response_type=id_token&redirect_url=http://localhost&nonce=123&state=abc&prompt=none&scope=openid"
+		fallthrough
+	case "":
+		cookies := ar.Request.Cookies()
+		if len(cookies) == 0 {
+			return nil, errors.New("invalid_request"), "missing cookie"
+		}
+		log.Printf("cookie authentication request\n")
+		if doc.AuthProvider != nil {
+			authProvided, err = doc.AuthProvider.Authorization("", cookies)
 		}
 	default:
 		return nil, errors.New("invalid_request"), "invalid authorization type"
@@ -183,7 +207,10 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvi
 			log.Println("authentication provided:", authProvided.Status(), authProvided.UserID())
 			ar.userID = authProvided.UserID()
 		} else {
-			return nil, errors.New("access_denied"), "authentication failed"
+			if ar.Prompt == "none" {
+				return nil, errors.New("login_required"), "login required"
+			}
+			return authProvided, errors.New("access_denied"), "authentication failed"
 		}
 	} else {
 		ar.userID = requestedUserID
@@ -286,6 +313,12 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 
 done:
 	if err != nil {
+		if authProvided != nil {
+			// Error but have authProvided, let it handle it.
+			return authProvided.RedirectError(err, ar)
+		}
+
+		// Return error response.
 		errResponse := &AuthenticationErrorResponse{
 			Error:            err.Error(),
 			State:            ar.State,

@@ -37,6 +37,7 @@ func (s *Server) Serve(runtime phoenix.Runtime) (err error) {
 			conf := owncloud.NewProviderConfig(
 				runtime.GetBoolDefault("provider", "owncloudSkipSSLValidation", owncloud.DefaultProviderSkipSSLValidation),
 				runtime.GetIntDefault("provider", "owncloudConnectionPoolSize", owncloud.DefaultProviderPoolSize),
+				runtime.GetStringDefault("provider", "owncloudLoginFormURL", owncloud.DefaultProviderLoginFormURL),
 			)
 			authProvider, _ = owncloud.NewProvider(owncloudURL, conf)
 		} else {
