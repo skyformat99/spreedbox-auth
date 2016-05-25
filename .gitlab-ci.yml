@@ -1,5 +1,10 @@
-job:
+runTests:
   script:
     - make goget
     - make build
     - make test
+
+checkJS:
+  script:
+    - make npm
+    - make jscs

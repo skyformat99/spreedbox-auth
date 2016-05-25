@@ -65,4 +65,7 @@ install-npm:
 
 www-release: install-npm www
 
+jscs:
+	cd $(CURDIR)/www && $(WWW_GULP) jscs
+
 .PHONY: all dist_gopath goget build dependencies.tsv www
