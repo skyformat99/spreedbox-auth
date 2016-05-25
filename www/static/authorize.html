@@ -23,8 +23,8 @@
 
 		location.replace(url);
 	}
-	// Authorize and redirect.
-	auth.authorize({
+
+	var options = {
 		onSuccess: function(values) {
 			var params = {};
 			for (var key in values) {
@@ -53,7 +53,17 @@
 			};
 			handler(params);
 		}
-	});
+	};
+
+	if (query.hasOwnProperty('response_type')) {
+		options.response_type = query.response_type;
+	}
+	if (query.hasOwnProperty('scope')) {
+		options.scope = query.scope;
+	}
+
+	// Authorize.
+	auth.authorize(options);
 }(this, this.spreedboxAuth));
 </script>
 </head>
