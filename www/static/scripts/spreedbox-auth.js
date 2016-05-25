@@ -1,14 +1,11 @@
-(function (root, factory) {
-	"use strict";
-
+'use strict';
+(function(root, factory) {
 	if (typeof define === 'function' && define.amd) {
 		define(['sha'], factory);
 	} else {
 		root.spreedboxAuth = factory(root.jsSHA);
 	}
-}(this, function(jsSHA) {
-	"use strict";
-
+}(this, function(JsSHA) {
 	var currentURL = location.protocol + '//' + location.host + location.pathname + location.search;
 
 	function encodeParams(params) {
@@ -40,7 +37,7 @@
 		}
 		var data = new Uint32Array(32);
 		window.crypto.getRandomValues(data);
-		var shaObj = new jsSHA('SHA-256', 'ARRAYBUFFER');
+		var shaObj = new JsSHA('SHA-256', 'ARRAYBUFFER');
 		shaObj.update(data);
 
 		return shaObj.getHash('HEX').substr(0, length);
@@ -49,9 +46,9 @@
 	function createNonce() {
 		var data = new Uint32Array(32);
 		window.crypto.getRandomValues(data);
-		var shaObj = new jsSHA('SHA-256', 'ARRAYBUFFER');
+		var shaObj = new JsSHA('SHA-256', 'ARRAYBUFFER');
 		shaObj.update(data);
-		var nonce = shaObj.getHash('HEX')
+		var nonce = shaObj.getHash('HEX');
 		sessionStorage.setItem('spreedbox-auth-nonce', nonce);
 
 		return nonce;
@@ -92,7 +89,7 @@
 		return JSON.parse(base64URLDecode(base64URL));
 	}
 
-	function parseAndValidateJWT(token, nonce, token_hash) {
+	function parseAndValidateJWT(token, nonce, tokenHash) {
 		// NOTE(longsleep): We do not validate the JWT signature client side.
 		var parts = token.split('.', 3);
 		var header = base64URLDecodeJSON(parts[0]);
@@ -116,7 +113,7 @@
 		if (away >= 120) {
 			throw 'iat validation failed';
 		}
-		if (token_hash) {
+		if (tokenHash) {
 			if (header.typ !== 'JWT') {
 				throw 'header typ unsupported: ' + header.typ;
 			}
@@ -124,23 +121,23 @@
 			// Validate left-most hash (http://openid.net/specs/openid-connect-core-1_0.html#CodeValidation).
 			var mode;
 			switch (header.alg) {
-			case 'RS256':
-				mode = 'SHA-256';
-				break;
-			case 'RS384':
-				mode = 'SHA-384';
-				break;
-			case 'RS512':
-				mode = 'SHA-512';
-				break;
+				case 'RS256':
+					mode = 'SHA-256';
+					break;
+				case 'RS384':
+					mode = 'SHA-384';
+					break;
+				case 'RS512':
+					mode = 'SHA-512';
+					break;
 			}
 			if (!mode) {
 				throw 'header alg unsupported: ' + header.alg;
 			}
-			var shaObj = new jsSHA(mode, 'TEXT');
+			var shaObj = new JsSHA(mode, 'TEXT');
 			shaObj.update(token);
-			var token_hash_check = base64URLEncode(shaObj.getHash('BYTES').substr(0, 16));
-			if (token_hash !== token_hash_check) {
+			var tokenHashCheck = base64URLEncode(shaObj.getHash('BYTES').substr(0, 16));
+			if (tokenHash !== tokenHashCheck) {
 				throw 'access token hash validation failed';
 			}
 		}
@@ -206,17 +203,17 @@
 
 				// Validate and decode tokens.
 				var nonce = getAndClearStoredNonce();
-				var at_hash = null;
+				var atHash = null;
 				if (params.id_token) {
 					params.id_token_raw = params.id_token;
 					try {
 						params.id_token = parseAndValidateJWT(params.id_token_raw, nonce);
-					} catch(e) {
+					} catch (e) {
 						err = e;
 						break;
 					}
 					if (params.id_token) {
-						at_hash = params.id_token.at_hash;
+						atHash = params.id_token.at_hash;
 					} else {
 						// Invalid ID token automatically mark access token as invalid as well.
 						params.access_token_raw = params.access_token;
@@ -226,8 +223,8 @@
 				if (params.access_token) {
 					params.access_token_raw = params.access_token;
 					try {
-						params.access_token = parseAndValidateJWT(params.access_token_raw, nonce, at_hash);
-					} catch(e) {
+						params.access_token = parseAndValidateJWT(params.access_token_raw, nonce, atHash);
+					} catch (e) {
 						err = e;
 						break;
 					}
@@ -238,8 +235,8 @@
 
 			if (err) {
 				if (options.onError) {
-					options.onError({error: err})
-					return
+					options.onError({error: err});
+					return;
 				}
 				throw 'spreedbox-auth error: ' + err;
 			}
