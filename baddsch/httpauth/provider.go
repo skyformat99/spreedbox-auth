@@ -1,15 +1,23 @@
 package httpauth
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch"
 
 	"golang.struktur.de/sling"
+)
+
+var (
+	httpauthTimingBase      = int64(1600)
+	httpauthTimingOffsetMax = big.NewInt(300)
 )
 
 type ProvidedHandler func([]byte, error) (baddsch.AuthProvided, error)
@@ -56,6 +64,10 @@ func (provider *Provider) Authorization(authorization string, cookies []*http.Co
 		request.Header("Cookie", strings.Join(encodedCookies, "; "))
 	}
 
+	// Constant time to avoid timing based information leaks.
+	add, _ := rand.Int(rand.Reader, httpauthTimingOffsetMax)
+	timer := time.NewTimer(time.Duration(httpauthTimingBase+add.Int64()) * time.Millisecond)
+
 	var responseData json.RawMessage
 	request.
 		StatusError(http.StatusUnauthorized, ErrStatusUnauthorized).
@@ -63,5 +75,9 @@ func (provider *Provider) Authorization(authorization string, cookies []*http.Co
 		Response(&responseData)
 
 	err := provider.client.Do(request)
+
+	// Wait until timer reached.
+	<-timer.C
+
 	return provider.handler([]byte(responseData), err)
 }

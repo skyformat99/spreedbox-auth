@@ -182,13 +182,13 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvi
 		}
 	case "Cookie":
 		// curl -v -H Authorization "Cookie" --cookie "blah=lala" "http://localhost:7031/api/v1/authorize?response_type=id_token&redirect_url=http://localhost&nonce=123&state=abc&prompt=none&scope=openid"
-		fallthrough
-	case "":
-		cookies := ar.Request.Cookies()
-		if len(cookies) == 0 {
+		if len(ar.Request.Cookies()) == 0 {
 			return nil, errors.New("invalid_request"), "missing cookie"
 		}
+		fallthrough
+	case "":
 		log.Printf("cookie authentication request\n")
+		cookies := ar.Request.Cookies()
 		if doc.AuthProvider != nil {
 			authProvided, err = doc.AuthProvider.Authorization("", cookies)
 		}
