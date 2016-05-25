@@ -1,3 +1,9 @@
+spreedbox-auth (0.2.2) trusty; urgency=medium
+
+  * Avoid timing based information leaks.
+
+ -- Simon Eisenmann <simon@struktur.de>  Wed, 25 May 2016 14:48:50 +0200
+
 spreedbox-auth (0.2.1) trusty; urgency=medium
 
   * Allow scope and response_type parameters.
