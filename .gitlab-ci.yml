@@ -6,5 +6,5 @@ runTests:
 
 checkJS:
   script:
-    - make npm
+    - make install-npm
     - make jscs
