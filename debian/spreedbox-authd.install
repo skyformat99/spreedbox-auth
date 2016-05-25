@@ -1,3 +1,2 @@
 /usr/bin/baddschd
 server.conf.in usr/share/spreedbox-authd
-www/ usr/share/spreedbox-authd

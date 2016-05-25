@@ -9,7 +9,16 @@ DIST_SRC := $(DIST)/src
 
 FOLDERS = $(shell find -mindepth 1 -maxdepth 1 -type d -not -path "*.git" -not -path "*debian" -not -path "*vendor" -not -path "*doc" -not -path "*test" -not -path "*scripts" -not -path "*www")
 
+VERSION := $(shell dpkg-parsechangelog | sed -n 's/^Version: //p')
+
+NPM := $(shell which npm)
+WWW_NPM_BIN := $(shell cd www && $(NPM) bin)
+WWW_GULP = $(WWW_NPM_BIN)/gulp
+
 all:
+
+version:
+	${ECHO} $(VERSION)
 
 $(DIST_SRC):
 	mkdir -p $@
@@ -43,4 +52,17 @@ dependencies.tsv:
 	GOPATH=$$TMP/vendor:$(CURDIR) $(CURDIR)/vendor/bin/godeps $(GOPKG)/baddsch > $(CURDIR)/dependencies.tsv ;\
 	rm -rf $$TMP ;\
 
-.PHONY: all dist_gopath goget build dependencies.tsv
+clean: www-clean
+
+www:
+	cd $(CURDIR)/www && $(WWW_GULP) --release=$(VERSION)
+
+www-clean:
+	rm -rf $(CURDIR)/www/build || true
+
+install-npm:
+	cd $(CURDIR)/www && $(NPM) install
+
+www-release: install-npm www
+
+.PHONY: all dist_gopath goget build dependencies.tsv www

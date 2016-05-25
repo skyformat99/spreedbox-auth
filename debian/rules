@@ -9,8 +9,9 @@ DEBVERS := $(shell dpkg-parsechangelog | sed -n -e 's/^Version: //p')
 VERSION := $(shell echo '$(DEBVERS)' | sed -e 's/^[[:digit:]]*://' -e 's/[~-].*//')
 export VERSION
 
-%:
-	dh $@ --buildsystem=golang --with=golang --fail-missing
+override_dh_auto_build:
+	dh_auto_build
+	DEB_BUILDING=1 $(MAKE) www-release
 
 override_dh_install:
 	dh_install
@@ -24,3 +25,9 @@ override_dh_install:
 	install -m755 -D $(CURDIR)/debian/firstboot.sh $(CURDIR)/debian/spreedbox-authd/etc/firstboot/firstboot.d/10generate-auth-keys
 	mkdir -p $(CURDIR)/debian/spreedbox-authd/usr/share/spreedbox-authd
 	cp -v $(CURDIR)/scripts/* $(CURDIR)/debian/spreedbox-authd/usr/share/spreedbox-authd
+	mkdir -p $(CURDIR)/debian/spreedbox-authd/usr/share/spreedbox-authd/www
+	cp -r $(CURDIR)/www/build/* $(CURDIR)/debian/spreedbox-authd/usr/share/spreedbox-authd/www
+
+
+%:
+	dh $@ --buildsystem=golang --with=golang --fail-missing

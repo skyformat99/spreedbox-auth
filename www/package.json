@@ -1,0 +1,11 @@
+{
+  "name": "spreedbox-auth",
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-cli": "^1.2.1",
+    "gulp-minify-inline": "^0.2.1",
+    "gulp-uglify": "^1.5.3",
+    "gulp-util": "^3.0.7",
+    "jscs": "^3.0.3"
+  }
+}

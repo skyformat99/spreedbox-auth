@@ -1,2 +1,4 @@
 /server.conf
 /server.key
+/www/node_modules
+/www/build
