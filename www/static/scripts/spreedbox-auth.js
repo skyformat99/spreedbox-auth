@@ -343,7 +343,7 @@
 
 	function isAuthExpired(auth) {
 		var now = new Date().getTime();
-		if (auth.received_at + (auth.expires_in / 100 * 80) < now) {
+		if (auth.received_at + (auth.expires_in * 1000 / 100 * 80) < now) {
 			return true;
 		}
 
