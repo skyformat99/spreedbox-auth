@@ -138,7 +138,7 @@
 			shaObj.update(token);
 			var tokenHashCheck = base64URLEncode(shaObj.getHash('BYTES').substr(0, 16));
 			if (tokenHash !== tokenHashCheck) {
-				throw 'access token hash validation failed';
+				throw 'access token hash validation failed: ' + tokenHash + ', ' + tokenHashCheck;
 			}
 		}
 
@@ -190,6 +190,9 @@
 		if (params.error) {
 			// Have error -> abort and trigger error handler.
 			clearCurrentAuth();
+			getAndClearStoredState();
+			getAndClearStoredNonce();
+
 			if (options.onError) {
 				options.onError(params);
 			} else {
@@ -202,6 +205,7 @@
 			var state = getAndClearStoredState();
 			var err;
 			while (true) {
+				var nonce = getAndClearStoredNonce();
 
 				if (params.state !== state) {
 					err = 'invalid state';
@@ -209,7 +213,6 @@
 				}
 
 				// Validate and decode tokens.
-				var nonce = getAndClearStoredNonce();
 				var atHash = null;
 				if (params.id_token) {
 					params.id_token_raw = params.id_token;
@@ -428,7 +431,7 @@
 	// Refresher app.
 	var refresherDefaultOptions = {
 		refresher_url: '/spreedbox-auth/static/refresher.html',
-		cache: true
+		cache: false
 	};
 	function RefresherApp(opts) {
 		var options = mergeOptions(opts, refresherDefaultOptions);
