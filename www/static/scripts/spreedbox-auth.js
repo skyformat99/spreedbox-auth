@@ -303,7 +303,7 @@
 	}
 
 	function setCurrentAuth(auth) {
-		if (!auth.hasOwnProperty('received_at')) {
+		if (auth && !auth.hasOwnProperty('received_at')) {
 			auth.received_at = new Date().getTime();
 		}
 		authorizeCurrent = auth;
