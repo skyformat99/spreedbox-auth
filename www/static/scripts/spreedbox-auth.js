@@ -180,7 +180,6 @@
 		scope: 'openid',
 		authorize_url: '/spreedbox-auth/authorize'
 	};
-	var authorizeCurrent = null;
 	function authorize(opts) {
 		var options = mergeOptions(opts, authorizeDefaultOptions);
 
@@ -190,7 +189,7 @@
 		// Check parameters.
 		if (params.error) {
 			// Have error -> abort and trigger error handler.
-			authorizeCurrent = null;
+			clearCurrentAuth();
 			if (options.onError) {
 				options.onError(params);
 			} else {
@@ -237,12 +236,20 @@
 						break;
 					}
 				}
+				if (params.expires_in) {
+					try {
+						params.expires_in = parseInt(params.expires_in, 10);
+					} catch (e) {
+						err = e;
+						break;
+					}
+				}
 
 				break;
 			}
 
 			if (err) {
-				authorizeCurrent = null;
+				clearCurrentAuth();
 				if (options.onError) {
 					options.onError({error: err});
 					return;
@@ -251,7 +258,7 @@
 			}
 
 			// Set current auth.
-			authorizeCurrent = params;
+			setCurrentAuth(params);
 			if (options.onSuccess) {
 				// Trigger success handler with a copy.
 				options.onSuccess(getCurrentAuth());
@@ -282,6 +289,12 @@
 		location.replace(options.authorize_url + '?' + encodeParams(query));
 	}
 
+	var authorizeCurrent = null;
+
+	function hasCurrentAuth() {
+		return authorizeCurrent !== null;
+	}
+
 	function getCurrentAuth() {
 		if (authorizeCurrent === null) {
 			return null;
@@ -289,8 +302,52 @@
 		return JSON.parse(JSON.stringify(authorizeCurrent));
 	}
 
+	function setCurrentAuth(auth) {
+		if (!auth.hasOwnProperty('received_at')) {
+			auth.received_at = new Date().getTime();
+		}
+		authorizeCurrent = auth;
+	}
+
 	function clearCurrentAuth() {
-		authorizeCurrent = null;
+		setCurrentAuth(null);
+	}
+
+	function cacheCurrentAuth() {
+		if (!authorizeCurrent) {
+			sessionStorage.removeItem('spreedbox-auth-cached');
+			return;
+		}
+		var data = {
+			v: 1,
+			auth: authorizeCurrent
+		};
+		sessionStorage.setItem('spreedbox-auth-cached', JSON.stringify(data));
+	}
+
+	function loadCurrentAuthFromCache() {
+		var s = sessionStorage.getItem('spreedbox-auth-cached');
+		if (!s) {
+			return null;
+		}
+		var data = JSON.parse(s);
+		switch (data.v) {
+			case 1:
+				if (!isAuthExpired(data.auth)) {
+					setCurrentAuth(data.auth);
+				}
+				break;
+		}
+		return getCurrentAuth();
+	}
+
+	function isAuthExpired(auth) {
+		var now = new Date().getTime();
+		if (auth.received_at + (auth.expires_in / 100 * 80) < now) {
+			return true;
+		}
+
+		return false;
 	}
 
 	// Simple redirector app.
@@ -370,7 +427,8 @@
 
 	// Refresher app.
 	var refresherDefaultOptions = {
-		refresher_url: '/spreedbox-auth/static/refresher.html'
+		refresher_url: '/spreedbox-auth/static/refresher.html',
+		cache: true
 	};
 	function RefresherApp(opts) {
 		var options = mergeOptions(opts, refresherDefaultOptions);
@@ -387,15 +445,21 @@
 			this.timer = null;
 			var refresher = this;
 
+			if (settings.cache && !hasCurrentAuth()) {
+				// Load from cache.
+				loadCurrentAuthFromCache();
+			}
+
 			this.frame = document.createElement('iframe');
 			this.frame.className = 'spreedbox-auth-refresher';
 			this.frame.style.display = 'none';
 			document.body.appendChild(this.frame);
 			this.frame.addEventListener('load', function() {
-				this.contentWindow.run(function(auth, error, cb) {
+				this.contentWindow.run(getCurrentAuth(), function(auth, error, cb) {
 					refresher.ready = true;
 					window.clearTimeout(refresher.timer);
 					if (auth) {
+						setCurrentAuth(auth);
 						var refreshSeconds = (auth.expires_in || 3600) / 100 * 70;
 						if (refreshSeconds > 3600) {
 							refreshSeconds = 3600;
@@ -405,7 +469,11 @@
 						}, refreshSeconds * 1000);
 						trigger(refresher, 'auth', auth, error);
 					} else {
+						clearCurrentAuth();
 						trigger(refresher, 'auth', null, error);
+					}
+					if (settings.cache) {
+						cacheCurrentAuth();
 					}
 					if (cb) {
 						cb(auth, error);
@@ -439,8 +507,7 @@
 				return auth;
 			}
 
-			if (auth) {
-				// TODO(longsleep): Check if expired, and refresh if so.
+			if (auth && !isAuthExpired(auth)) {
 				window.setTimeout(function() {
 					cb(auth, null);
 				}, 0);

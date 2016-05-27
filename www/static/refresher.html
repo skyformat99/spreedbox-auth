@@ -11,13 +11,19 @@
 	// Create Handler app instance without prompt.
 	var handler = auth.app.handler({prompt: 'none'});
 	// Bind global run function (is called by parent).
-	root.run = function(handleFunc, options, cb) {
+	root.run = function(currentAuth, handleFunc, options, cb) {
 		handler.setup(handleFunc, options);
-		return handler.authorize(cb);
+		if (currentAuth) {
+			window.setTimeout(function() {
+				handleFunc(currentAuth, null, cb);
+			}, 0);
+			return
+		}
+		handler.authorize(cb);
 	};
 	// Bind global authorize function (is called by parent).
 	root.authorize = function(cb) {
-		return handler.authorize(cb);
+		handler.authorize(cb);
 	};
 }(this, this.spreedboxAuth));
 </script>
