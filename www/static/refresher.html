@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<script src="./lib/sha.js"></script>
+<script src="./scripts/spreedbox-auth.js"></script>
+<script>
+(function(root, auth) {
+	'use strict';
+
+	// Create Handler app instance without prompt.
+	var handler = auth.app.handler({prompt: 'none'});
+	// Bind global run function (is called by parent).
+	root.run = function(handleFunc, options, cb) {
+		handler.setup(handleFunc, options);
+		return handler.authorize(cb);
+	};
+	// Bind global authorize function (is called by parent).
+	root.authorize = function(cb) {
+		return handler.authorize(cb);
+	};
+}(this, this.spreedboxAuth));
+</script>
+</head>
+<body></body>
+</html>

@@ -155,19 +155,12 @@
 		return params;
 	}
 
-	// Our main app.
-	var defaultOptions = {
-		response_type: 'id_token token',
-		scope: 'openid',
-		authorize_url: '/spreedbox-auth/authorize'
-	};
-	var currentAuth = null;
-	function authorize(opts) {
+	function mergeOptions(opts, defaultOpts) {
 		var options = {};
 		var key;
-		for (key in defaultOptions) {
-			if (defaultOptions.hasOwnProperty(key)) {
-				options[key] = defaultOptions[key];
+		for (key in defaultOpts) {
+			if (defaultOpts.hasOwnProperty(key)) {
+				options[key] = defaultOpts[key];
 			}
 		}
 		if (opts) {
@@ -178,12 +171,26 @@
 			}
 		}
 
+		return options;
+	}
+
+	// Our main app.
+	var authorizeDefaultOptions = {
+		response_type: 'id_token token',
+		scope: 'openid',
+		authorize_url: '/spreedbox-auth/authorize'
+	};
+	var authorizeCurrent = null;
+	function authorize(opts) {
+		var options = mergeOptions(opts, authorizeDefaultOptions);
+
 		// Get and kill all hash data.
 		var params = parseHash(true);
 
 		// Check parameters.
 		if (params.error) {
 			// Have error -> abort and trigger error handler.
+			authorizeCurrent = null;
 			if (options.onError) {
 				options.onError(params);
 			} else {
@@ -235,6 +242,7 @@
 			}
 
 			if (err) {
+				authorizeCurrent = null;
 				if (options.onError) {
 					options.onError({error: err});
 					return;
@@ -243,7 +251,7 @@
 			}
 
 			// Set current auth.
-			currentAuth = params;
+			authorizeCurrent = params;
 			if (options.onSuccess) {
 				// Trigger success handler with a copy.
 				options.onSuccess(getCurrentAuth());
@@ -275,20 +283,31 @@
 	}
 
 	function getCurrentAuth() {
-		if (currentAuth === null) {
+		if (authorizeCurrent === null) {
 			return null;
 		}
-		return JSON.parse(JSON.stringify(currentAuth));
+		return JSON.parse(JSON.stringify(authorizeCurrent));
+	}
+
+	function clearCurrentAuth() {
+		authorizeCurrent = null;
 	}
 
 	// Simple redirector app.
-	function redirector(defaultTarget) {
+	var redirectorDefaultOptions = {};
+	function RedirectorApp(opts) {
+		var options = mergeOptions(opts, redirectorDefaultOptions);
 		var query = decodeParams(location.search.substring(1));
+
+		function Redirector(settings) {
+			// Authorize.
+			authorize(settings);
+		}
 
 		function handler(params) {
 			var target = query.target;
 			if (!target) {
-				target = defaultTarget;
+				target = options.default_target;
 			}
 
 			if (!target) {
@@ -305,35 +324,34 @@
 			location.replace(url);
 		}
 
-		var options = {
-			onSuccess: function(values) {
-				var params = {};
-				for (var key in values) {
-					if (values.hasOwnProperty(key)) {
-						switch (key) {
-						case 'access_token_raw':
-						case 'id_token_raw':
-							params[key.substr(0, key.length - 4)] = values[key];
-							break;
-						case 'code':
-						case 'token_type':
-						case 'expires_in':
-						case 'state':
-							params[key] = values[key];
-						default:
-							break;
-						}
+		options.onSuccess = function(values) {
+			var params = {};
+			for (var key in values) {
+				if (values.hasOwnProperty(key)) {
+					switch (key) {
+					case 'access_token_raw':
+					case 'id_token_raw':
+						params[key.substr(0, key.length - 4)] = values[key];
+						break;
+					case 'code':
+					case 'token_type':
+					case 'expires_in':
+					case 'state':
+						params[key] = values[key];
+					default:
+						break;
 					}
 				}
-				handler(params);
-			},
-			onError: function(error) {
-				var params = {
-					error: error.error || 'unknown error',
-					error_description: error.error_description || ''
-				};
-				handler(params);
 			}
+			handler(params);
+		};
+
+		options.onError = function(error) {
+			var params = {
+				error: error.error || 'unknown error',
+				error_description: error.error_description || ''
+			};
+			handler(params);
 		};
 
 		if (query.hasOwnProperty('response_type')) {
@@ -346,23 +364,160 @@
 			options.prompt = query.prompt;
 		}
 
-		// Authorize.
-		authorize(options);
+		redirectorCurrent = new Redirector(options);
+		return redirectorCurrent;
+	}
+
+	// Refresher app.
+	var refresherDefaultOptions = {
+		refresher_url: '/spreedbox-auth/static/refresher.html'
+	};
+	function RefresherApp(opts) {
+		var options = mergeOptions(opts, refresherDefaultOptions);
+
+		function trigger(refresher, name, auth, error) {
+			var f = refresher['on' + name];
+			if (f) {
+				f(auth, error);
+			}
+		}
+
+		function Refresher(settings) {
+			this.ready = false;
+			this.timer = null;
+			var refresher = this;
+
+			this.frame = document.createElement('iframe');
+			this.frame.className = 'spreedbox-auth-refresher';
+			this.frame.style.display = 'none';
+			document.body.appendChild(this.frame);
+			this.frame.addEventListener('load', function() {
+				this.contentWindow.run(function(auth, error, cb) {
+					refresher.ready = true;
+					window.clearTimeout(refresher.timer);
+					if (auth) {
+						var refreshSeconds = (auth.expires_in || 3600) / 100 * 70;
+						if (refreshSeconds > 3600) {
+							refreshSeconds = 3600;
+						}
+						refresher.timer = window.setTimeout(function() {
+							refresher.refresh();
+						}, refreshSeconds * 1000);
+						trigger(refresher, 'auth', auth, error);
+					} else {
+						trigger(refresher, 'auth', null, error);
+					}
+					if (cb) {
+						cb(auth, error);
+					}
+				}, null, null);
+			});
+
+			// Always trigger auth after creation.
+			window.setTimeout(function() {
+				trigger(refresher, 'auth', getCurrentAuth(), null);
+				refresher.frame.setAttribute('src', settings.refresher_url);
+			}, 0);
+		}
+
+		Refresher.prototype.clear = function() {
+			window.clearTimeout(this.timer);
+			clearCurrentAuth();
+			trigger(this, 'auth', null, null);
+		};
+
+		Refresher.prototype.refresh = function(cb) {
+			if (this.ready) {
+				this.ready = false;
+				this.frame.contentWindow.authorize(cb);
+			}
+		};
+
+		Refresher.prototype.with = function(cb) {
+			var auth = getCurrentAuth();
+			if (!cb) {
+				return auth;
+			}
+
+			if (auth) {
+				// TODO(longsleep): Check if expired, and refresh if so.
+				window.setTimeout(function() {
+					cb(auth, null);
+				}, 0);
+			} else {
+				var that = this;
+				window.setTimeout(function() {
+					that.refresh(cb);
+				}, 0);
+			}
+		};
+
+		// Refresher API.
+		// - refresher.onauth(auth, error) (register as function)
+		// - refresher.clear()
+		// - refresher.refresh()
+		// - refresher.with(cb)
+
+		return new Refresher(options);
+	}
+
+	// Handler app.
+	var handlerDefaultOptions = {};
+	function HandlerApp(opts) {
+		var options = mergeOptions(opts, handlerDefaultOptions);
+
+		function Handler(settings) {
+			this.settings = settings;
+			this.handleFunc = null;
+			this.options = null;
+		}
+
+		Handler.prototype.setup = function(handleFunc, opts) {
+			this.handleFunc = handleFunc;
+
+			var options = mergeOptions(opts, this.settings);
+			this.options = options;
+		};
+
+		Handler.prototype.authorize = function(cb) {
+			if (this.handleFunc === null) {
+				throw 'handler is not set up';
+			}
+
+			var handleFunc = this.handleFunc;
+			var options = mergeOptions(null, this.options);
+			options.onSuccess = function onSuccess(values) {
+				handleFunc(values, null, cb);
+			};
+			options.onError = function onError(error) {
+				handleFunc(null, error, cb);
+			};
+
+			authorize(options);
+		};
+
+		return new Handler(options);
 	}
 
 	// Expose public API.
 	var spreedboxAuth = function spreedboxAuth(options) {
 		return authorize(options);
 	};
-	spreedboxAuth.defaultOptions = defaultOptions;
+	spreedboxAuth.defaultOptions = authorizeDefaultOptions;
 	spreedboxAuth.decodeParams = decodeParams;
 	spreedboxAuth.encodeParams = encodeParams;
 	spreedboxAuth.parseHash = parseHash;
 	spreedboxAuth.authorize = authorize;
+	spreedboxAuth.authorize.defaultOptions = authorizeDefaultOptions;
 	spreedboxAuth.get = getCurrentAuth;
 	spreedboxAuth.app = {
-		redirector: redirector
+		redirector: RedirectorApp,
+		refresher: RefresherApp,
+		handler: HandlerApp
 	};
+	RedirectorApp.defaultOptions = redirectorDefaultOptions;
+	RefresherApp.defaultOptions = refresherDefaultOptions;
+	HandlerApp.defaultOptions = handlerDefaultOptions;
 
 	return spreedboxAuth;
 }));
