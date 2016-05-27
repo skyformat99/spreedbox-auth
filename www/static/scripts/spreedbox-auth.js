@@ -431,7 +431,7 @@
 	// Refresher app.
 	var refresherDefaultOptions = {
 		refresher_url: '/spreedbox-auth/static/refresher.html',
-		cache: false
+		cache: true
 	};
 	function RefresherApp(opts) {
 		var options = mergeOptions(opts, refresherDefaultOptions);
