@@ -155,13 +155,14 @@
 		return params;
 	}
 
+	// Our main app.
 	var defaultOptions = {
 		response_type: 'id_token token',
 		scope: 'openid',
 		authorize_url: '/spreedbox-auth/authorize'
 	};
-
-	function spreedboxAuth(opts) {
+	var currentAuth = null;
+	function authorize(opts) {
 		var options = {};
 		var key;
 		for (key in defaultOptions) {
@@ -241,8 +242,11 @@
 				throw 'spreedbox-auth error: ' + err;
 			}
 
+			// Set current auth.
+			currentAuth = params;
 			if (options.onSuccess) {
-				options.onSuccess(params);
+				// Trigger success handler with a copy.
+				options.onSuccess(getCurrentAuth());
 			}
 
 			return;
@@ -270,12 +274,95 @@
 		location.replace(options.authorize_url + '?' + encodeParams(query));
 	}
 
-	// Expose some stuff public.
+	function getCurrentAuth() {
+		if (currentAuth === null) {
+			return null;
+		}
+		return JSON.parse(JSON.stringify(currentAuth));
+	}
+
+	// Simple redirector app.
+	function redirector(defaultTarget) {
+		var query = decodeParams(location.search.substring(1));
+
+		function handler(params) {
+			var target = query.target;
+			if (!target) {
+				target = defaultTarget;
+			}
+
+			if (!target) {
+				return;
+			}
+			var link = document.createElement('a');
+			link.href = target;
+			link.hash = encodeParams(params);
+			if (link.protocol !== 'https:' || link.host !== location.host) {
+				throw 'invalid or insecure target';
+			}
+			var url = link.protocol + '//' + link.host + link.pathname + link.search + link.hash;
+
+			location.replace(url);
+		}
+
+		var options = {
+			onSuccess: function(values) {
+				var params = {};
+				for (var key in values) {
+					if (values.hasOwnProperty(key)) {
+						switch (key) {
+						case 'access_token_raw':
+						case 'id_token_raw':
+							params[key.substr(0, key.length - 4)] = values[key];
+							break;
+						case 'code':
+						case 'token_type':
+						case 'expires_in':
+						case 'state':
+							params[key] = values[key];
+						default:
+							break;
+						}
+					}
+				}
+				handler(params);
+			},
+			onError: function(error) {
+				var params = {
+					error: error.error || 'unknown error',
+					error_description: error.error_description || ''
+				};
+				handler(params);
+			}
+		};
+
+		if (query.hasOwnProperty('response_type')) {
+			options.response_type = query.response_type;
+		}
+		if (query.hasOwnProperty('scope')) {
+			options.scope = query.scope;
+		}
+		if (query.hasOwnProperty('prompt')) {
+			options.prompt = query.prompt;
+		}
+
+		// Authorize.
+		authorize(options);
+	}
+
+	// Expose public API.
+	var spreedboxAuth = function spreedboxAuth(options) {
+		return authorize(options);
+	};
 	spreedboxAuth.defaultOptions = defaultOptions;
 	spreedboxAuth.decodeParams = decodeParams;
 	spreedboxAuth.encodeParams = encodeParams;
 	spreedboxAuth.parseHash = parseHash;
-	spreedboxAuth.authorize = spreedboxAuth;
+	spreedboxAuth.authorize = authorize;
+	spreedboxAuth.get = getCurrentAuth;
+	spreedboxAuth.app = {
+		redirector: redirector
+	};
 
 	return spreedboxAuth;
 }));
