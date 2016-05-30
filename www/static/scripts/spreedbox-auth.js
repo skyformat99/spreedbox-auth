@@ -334,7 +334,6 @@
 
 	function setCurrentAuth(auth) {
 		if (auth && !auth.hasOwnProperty('received_at')) {
-			console.log('set received at');
 			auth.received_at = new Date().getTime();
 		}
 		authorizeCurrent = auth;
@@ -387,6 +386,63 @@
 
 		return false;
 	}
+
+	// Revocate app.
+	var revocateDefaultOptions = {
+		token_type: 'access_token',
+		revocate_url: baseAPIURL + '/revocate'
+	};
+	function revocate(opts) {
+		var options = mergeOptions(opts, revocateDefaultOptions);
+
+		var auth = getCurrentAuth();
+		if (!auth) {
+			throw 'no auth';
+		}
+
+		var token;
+		var token_type = options.token_type;
+		switch (options.token_type) {
+			case 'id_token':
+				token = auth.id_token_raw;
+				break;
+			case '':
+				token_type = 'access_token';
+				// fallthrough
+			case 'access_token':
+				token = auth.access_token_raw;
+				break;
+			default:
+				throw 'unsupported token type';
+		}
+
+		if (!token) {
+			throw 'no token';
+		}
+
+		var params = {
+			token: token,
+			token_type: token_type
+		};
+
+		var r = new XMLHttpRequest();
+		r.open('POST', options.revocate_url, true);
+		r.setRequestHeader('Authorization', auth.token_type + ' ' + token);
+		r.onreadystatechange = function () {
+			if (r.readyState === 4) { // done
+				if (r.status === 200) { // ok
+					if (options.onSuccess) {
+						options.onSuccess(r.responseText);
+					}
+				} else {
+					if (options.onError) {
+						options.onError(r.status, r.responseText);
+					}
+				}
+			}
+		};
+		r.send(encodeParams(params));
+	};
 
 	// Simple redirector app.
 	var redirectorDefaultOptions = {};
@@ -604,6 +660,23 @@
 		return new Handler(options);
 	}
 
+	// Logout app.
+	function LogoutApp(opts) {
+		var options = mergeOptions(opts, {});
+		options.onSuccess = function() {
+			clearCurrentAuth();
+			if (opts && opts.onSuccess) {
+				opts.onSuccess.apply(this, arguments);
+			}
+		};
+
+		function Logout(settings) {
+			revocate(settings)
+		}
+
+		return new Logout(options)
+	}
+
 	// Expose public API.
 	var spreedboxAuth = function spreedboxAuth(options) {
 		return authorize(options);
@@ -614,11 +687,14 @@
 	spreedboxAuth.parseHash = parseHash;
 	spreedboxAuth.authorize = authorize;
 	spreedboxAuth.authorize.defaultOptions = authorizeDefaultOptions;
+	spreedboxAuth.revocate = revocate;
+	spreedboxAuth.revocate.defaultOptions = revocateDefaultOptions;
 	spreedboxAuth.get = getCurrentAuth;
 	spreedboxAuth.app = {
 		redirector: RedirectorApp,
 		refresher: RefresherApp,
-		handler: HandlerApp
+		handler: HandlerApp,
+		logout: LogoutApp
 	};
 	spreedboxAuth.run = {
 		authorize: function() {

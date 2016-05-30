@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/strukturag/phoenix"
+
+	"golang.struktur.de/spreedbox/spreedbox-auth/lockmap"
 )
 
 // APIv1 defines end points of baddsch API version 1.
@@ -12,6 +14,7 @@ type APIv1 struct {
 	WellKnownSpreedConfigurationDocument *JSONDocument
 	AuthorizeDocument                    *AuthorizeDocument
 	ValidateDocument                     *ValidateDocument
+	RevocateDocument                     *RevocateDocument
 }
 
 // NewAPIv1 creates a APIv1 instance return it as API interface
@@ -55,6 +58,8 @@ func (api *APIv1) AddResources(holder APIResourceHolder, authProvider AuthProvid
 		"spreedbox-auth_endpoint":                     "https://{{.Host}}/spreedbox-auth",
 	}}
 
+	blacklist := lockmap.New()
+
 	api.AuthorizeDocument = &AuthorizeDocument{
 		IssueIdentifier:       tokenIssueIdentifier,
 		TokenAlg:              tokenAlg,
@@ -70,6 +75,11 @@ func (api *APIv1) AddResources(holder APIResourceHolder, authProvider AuthProvid
 		TokenAlg:              tokenAlg,
 		TokenAccessTokenClaim: tokenAccessTokenClaim,
 		TokenPublicKey:        tokenPrivateKey.Public(),
+		Blacklist:             blacklist,
+	}
+
+	api.RevocateDocument = &RevocateDocument{
+		ValidateDocument: api.ValidateDocument,
 	}
 
 	// Bind documents to resource endpoints.
@@ -79,6 +89,8 @@ func (api *APIv1) AddResources(holder APIResourceHolder, authProvider AuthProvid
 		"/authorize")
 	holder.AddResource(api.ValidateDocument,
 		"/validate")
+	holder.AddResource(api.RevocateDocument,
+		"/revocate")
 
 	return nil
 }

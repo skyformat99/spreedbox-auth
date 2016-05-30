@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch/jwt"
+	"golang.struktur.de/spreedbox/spreedbox-auth/lockmap"
 )
 
 // curl -v -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJjbGllbnQtaWQiLCJleHAiOjE0NTgxNDgzNDAsImlhdCI6MTQ1NzU0MzU0MCwiaXNzIjoiaHR0cHM6Ly9zcHJlZWRib3gubG9jYWxkb21haW4iLCJub25jZSI6IjEyMyIsInN1YiI6InRvZG8tdXNlci1pZCJ9.mD-TKPlPxb3WPr0yfafUupcHYjCFei84_HEpG8CZolbEOxGZaS_l75sl0mKmKEUrFfwoxRcLSOtciOVElISoXrZDJRu3x7HnvSBVR3il4T9uoKs8MawNxPAjKBUo3rw3L4lACNYpXri0-lQ3LVthJJEThWszcfTO3meX5F8AREU7_4Jsj0idOcThSJh7121acgkOoAKsgTE2Gvm3t6e7gcW9aeym74DiOP5M_eHd8AQLBjjCf3ioHb92iQQolA7YnRn9kGDToqwuhsIQym6gFtFAeek6anALjDgzLsda649joLwK4NzaPk3VgH1XlykAMOP-_7Qla3fyqigAvjV8v9XD3Lz5WcOUjZnW4xjfVDGk72rNZll_zVGBmhHvTGCZaDqqX5_TbrpgCW4s1cjV6w8osEFLif_0-NClUshwnA8EuCVnr3cIK-LIyKkmllxoLem3BgEB201LimRRlYRVv23GNODmva1e92zMkbTgxOpTgMpAxMU_QOOKCWzAYVdph4XGSHzs1Ih-DiAG7pSIeAD-67MOGVNrJzWEHQkw5i_4CGpbM2nRz-uT4qDfJS3tJxtgpT-CPRnA_GJYRKltPplucCib01JRhjUumo-ewQc5HIs2prsa0v_f_J7Vyb7c2PsjMh6u-jhmv3DimwznQXB3dyJhdAmlDDtINDUAli0" http://localhost:7031/api/v1/validate
@@ -19,6 +20,7 @@ type ValidateDocument struct {
 	TokenAlg              string
 	TokenAccessTokenClaim string
 	TokenPublicKey        crypto.PublicKey
+	Blacklist             *lockmap.LockMap
 }
 
 func (doc *ValidateDocument) Get(r *http.Request) (int, interface{}, http.Header) {
@@ -42,6 +44,7 @@ type ValidationRequestOptions struct {
 type ValidationRequest struct {
 	Options   *ValidationRequestOptions `schema:"-"`
 	TokenType string                    `schema:"token_type"`
+	Token     *jwt.Token                `schema:"-"`
 }
 
 func NewValidationRequest(r *http.Request) (*ValidationRequest, error) {
@@ -95,6 +98,13 @@ func (vr *ValidationRequest) Validate(doc *ValidateDocument) (error, string) {
 			return errors.New("access_denied"), err.Error()
 		}
 	}
+
+	// Check if on blacklist.
+	if doc.Blacklist.Has(token.Raw) {
+		return errors.New("access_denied"), "Token is on blacklist"
+	}
+
+	vr.Token = token
 
 	return nil, ""
 }
