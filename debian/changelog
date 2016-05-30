@@ -1,3 +1,11 @@
+spreedbox-auth (0.2.4) trusty; urgency=medium
+
+  * Use relative redirect URL for ownCloud.
+  * Remove debug.
+  * Use redirector app to provide the authorize runner.
+
+ -- Simon Eisenmann <simon@struktur.de>  Mon, 30 May 2016 17:39:25 +0200
+
 spreedbox-auth (0.2.3) trusty; urgency=medium
 
   * Moved redirector app to script and added api for it.
