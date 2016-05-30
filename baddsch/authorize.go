@@ -188,17 +188,7 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvi
 		fallthrough
 	case "":
 		log.Printf("cookie authentication request\n")
-		//cookies := ar.Request.Cookies()
-
-		cookies := []*http.Cookie{
-			&http.Cookie{
-				Name:  "ocho4icm90oj",
-				Value: "e6rh8ij7jrpsfgmdv9qbi5pa35",
-			}, &http.Cookie{
-				Name:  "oc_sessionPassphrase",
-				Value: "nnFvYcZYTlLLUSIGFBNMxkFEjiVlTgoVG8WQQXOsLYXpH412AFxp8Z40N05KRJcj8EyEZBRG2LOCMT%2FrcLDNJTHJfo38cvMT4ZA84FL%2FeWu5GhFrKD5ODd9vlY5Z4vRA",
-			},
-		}
+		cookies := ar.Request.Cookies()
 		if doc.AuthProvider != nil {
 			authProvided, err = doc.AuthProvider.Authorization("", cookies)
 		}
