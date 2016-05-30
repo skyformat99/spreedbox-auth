@@ -76,13 +76,13 @@
 	}
 
 	function base64URLDecode(base64URL) {
-		var base64 = base64URL.replace('-', '+').replace('_', '/');
+		var base64 = base64URL.replace(/-/g, '+').replace(/_/g, '/');
 		return window.atob(base64);
 	}
 
 	function base64URLEncode(s) {
 		var base64 = window.btoa(s);
-		return base64.replace('+', '-').replace('/', '_');
+		return base64.replace(/\+/g, '-').replace(/\//g, '_');
 	}
 
 	function base64URLDecodeJSON(base64URL) {
