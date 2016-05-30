@@ -424,8 +424,7 @@
 			options.prompt = query.prompt;
 		}
 
-		redirectorCurrent = new Redirector(options);
-		return redirectorCurrent;
+		return new Redirector(options);
 	}
 
 	// Refresher app.
