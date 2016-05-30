@@ -717,7 +717,8 @@
 	};
 	spreedboxAuth.run = {
 		authorize: function() {
-			authorize();
+			var handler = RedirectorApp();
+			window.redirector = handler;
 		},
 		refresh: function() {
 			// Create Handler app instance without prompt.
