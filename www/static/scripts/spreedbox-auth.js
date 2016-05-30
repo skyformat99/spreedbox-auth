@@ -178,7 +178,7 @@
 	var authorizeDefaultOptions = {
 		response_type: 'id_token token',
 		scope: 'openid',
-		authorize_url: '/spreedbox-auth/authorize'
+		authorize_url: '/spreedbox-auth/api/v1/authorize'
 	};
 	function authorize(opts) {
 		var options = mergeOptions(opts, authorizeDefaultOptions);
@@ -429,7 +429,7 @@
 
 	// Refresher app.
 	var refresherDefaultOptions = {
-		refresher_url: '/spreedbox-auth/static/refresher.html',
+		refresher_url: '/spreedbox-auth/api/v1/static/refresher.html',
 		cache: true
 	};
 	function RefresherApp(opts) {

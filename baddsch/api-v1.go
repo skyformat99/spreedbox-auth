@@ -45,13 +45,14 @@ func (api *APIv1) AddResources(holder APIResourceHolder, authProvider AuthProvid
 		"owncloud_endpoint":                           "https://{{.Host}}/index.php",
 		"owncloud-spreedme_endpoint":                  "https://{{.Host}}/index.php/apps/spreedme",
 		"spreed-webrtc_endpoint":                      "https://{{.Host}}/webrtc",
-		"authorization_endpoint":                      "https://{{.Host}}/spreedbox-auth/authorize",
+		"authorization_endpoint":                      "https://{{.Host}}/spreedbox-auth/api/v1/authorize",
 		"scopes_supported":                            []string{"openid"},
 		"response_types_supported":                    []string{"id_token", "token id_token", "token"},
 		"id_token_signing_alg_values_supported":       []string{tokenAlg},
 		"request_object_signing_alg_values_supported": []string{tokenAlg},
 		"subject_types_supported":                     []string{"pairwise"},
 		"spreedbox-setup_endpoint":                    "https://{{.Host}}/spreedbox-setup", // TODO(longsleep): Add a registry for services.
+		"spreedbox-auth_endpoint":                     "https://{{.Host}}/spreedbox-auth",
 	}}
 
 	api.AuthorizeDocument = &AuthorizeDocument{
