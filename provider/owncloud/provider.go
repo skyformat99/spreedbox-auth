@@ -95,8 +95,13 @@ func (ap *authProvided) RedirectError(err error, ar *baddsch.AuthenticationReque
 		return http.StatusInternalServerError, err.Error(), nil
 	}
 
+	// NOTE(longsleep): ownCloud only supports relative URLs, lets hope
+	// that the setup is done right, and everything can be relative.
+	relativeRedirectURL, _ := url.Parse(ar.Options.RedirectURL.String())
+	relativeRedirectURL.Scheme = ""
+	relativeRedirectURL.Host = ""
 	v, _ := query.Values(&LoginRedirectRequest{
-		RedirectURL: ar.Options.RedirectURL.String(),
+		RedirectURL: relativeRedirectURL.String(),
 	})
 	url.RawQuery = v.Encode()
 	url.Fragment = "authprovided=1"
