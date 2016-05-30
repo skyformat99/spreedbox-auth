@@ -1,3 +1,24 @@
+spreedbox-auth (0.2.3) trusty; urgency=medium
+
+  * Moved redirector app to script and added api for it.
+  * Implement web app for refresh and auth checks in the background.
+  * Implement auth caching by default for refresher.
+  * Fixed set auth when auth is null.
+  * Fix milliseconds vs seconds comparison.
+  * Always clear state and nonce.
+  * Reenable cache by default, accidently disabled.
+  * Fixed wrong variable definiton.
+  * Use URLs with api/v1 in path.
+  * Fix base64URL encode/decode when multiple chars need replacing.
+  * Implement CSP.
+  * Add revocate and logout api.
+  * Fix docstring lint.
+  * Expose revocate endpoint.
+  * Finish up revocate implementation.
+  * Implement OK status for double revocate according to spec.
+
+ -- Simon Eisenmann <simon@struktur.de>  Mon, 30 May 2016 16:38:40 +0200
+
 spreedbox-auth (0.2.2) trusty; urgency=medium
 
   * Avoid timing based information leaks.
