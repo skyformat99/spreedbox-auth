@@ -22,7 +22,7 @@ func (doc *RevocateDocument) Post(r *http.Request) (int, interface{}, http.Heade
 type RevocationRequest struct {
 	ValidationRequest *ValidationRequest `schema:"-"`
 	Token             string             `schema:"token"`
-	TokenType         string             `schema:"token_type"`
+	TokenTypeHint     string             `schema:"token_type_hint"`
 }
 
 func NewRevocationRequest(r *http.Request) (*RevocationRequest, error) {
@@ -31,18 +31,19 @@ func NewRevocationRequest(r *http.Request) (*RevocationRequest, error) {
 		return nil, err
 	}
 
+	// Validate request.
 	vr, err := NewValidationRequest(r)
 	if err != nil {
 		return nil, err
 	}
-	vr.TokenType = "" // Handle this ourselves.
+	vr.TokenType = "" // Allow any token here.
 	rr.ValidationRequest = vr
 
 	return rr, nil
 }
 
 func (rr *RevocationRequest) Revocate(doc *RevocateDocument) (error, string) {
-	switch rr.TokenType {
+	switch rr.TokenTypeHint {
 	case "access_token":
 		fallthrough
 	case "":
@@ -52,14 +53,19 @@ func (rr *RevocationRequest) Revocate(doc *RevocateDocument) (error, string) {
 		return errors.New("unsupported_token_type"), "Unsupported token_type"
 	}
 
-	token := rr.ValidationRequest.Token
-	if token == nil {
+	accessToken := rr.ValidationRequest.Token
+	if accessToken == nil {
 		return errors.New("access_denied"), "No token"
 	}
 
-	// Add token to blacklist.
-	doc.ValidateDocument.Blacklist.SetIfAbsent(token.Raw, true)
+	if accessToken.Raw != rr.Token {
+		return errors.New("access_denied"), "Token mismatch"
+	}
 
+	// Add token to blacklist.
+	doc.ValidateDocument.Blacklist.SetIfAbsent(rr.Token, true)
+
+	log.Println("revocate success http")
 	return nil, ""
 }
 

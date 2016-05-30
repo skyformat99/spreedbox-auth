@@ -49,6 +49,7 @@ func (api *APIv1) AddResources(holder APIResourceHolder, authProvider AuthProvid
 		"owncloud-spreedme_endpoint":                  "https://{{.Host}}/index.php/apps/spreedme",
 		"spreed-webrtc_endpoint":                      "https://{{.Host}}/webrtc",
 		"authorization_endpoint":                      "https://{{.Host}}/spreedbox-auth/api/v1/authorize",
+		"revocation_endpoint":                         "https://{{.Host}}/spreedbox-auth/api/v1/revocate",
 		"scopes_supported":                            []string{"openid"},
 		"response_types_supported":                    []string{"id_token", "token id_token", "token"},
 		"id_token_signing_alg_values_supported":       []string{tokenAlg},
