@@ -1,32 +1,10 @@
 <!doctype html>
 <html lang="en">
-<head>
+<head spreedbox-auth-run="refresh">
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'">
 <script src="./lib/sha.js"></script>
 <script src="./scripts/spreedbox-auth.js"></script>
-<script>
-(function(root, auth) {
-	'use strict';
-
-	// Create Handler app instance without prompt.
-	var handler = auth.app.handler({prompt: 'none'});
-	// Bind global run function (is called by parent).
-	root.run = function(currentAuth, handleFunc, options, cb) {
-		handler.setup(handleFunc, options);
-		if (currentAuth) {
-			window.setTimeout(function() {
-				handleFunc(currentAuth, null, cb);
-			}, 0);
-			return
-		}
-		handler.authorize(cb);
-	};
-	// Bind global authorize function (is called by parent).
-	root.authorize = function(cb) {
-		handler.authorize(cb);
-	};
-}(this, this.spreedboxAuth));
-</script>
 </head>
 <body></body>
 </html>

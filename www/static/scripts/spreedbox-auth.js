@@ -7,6 +7,33 @@
 	}
 }(this, function(JsSHA) {
 	var currentURL = location.protocol + '//' + location.host + location.pathname + location.search;
+	var currentScript = document.currentScript || (function() {
+		var scripts = document.getElementsByTagName('script');
+		var script = scripts[scripts.length - 1];
+		if (script.src.indexOf('spreedbox-auth.js') === -1) {
+			return null;
+		}
+		return script;
+	})();
+	var baseScriptURL = (function() {
+		while (true) {
+			if (currentScript === null) {
+				break;
+			}
+
+			var link = document.createElement('a');
+			link.href = currentScript.src;
+			var parts = link.pathname.split('/spreedbox-auth.js', 2);
+			if (parts.length === 2) {
+				return parts[0];
+			}
+
+			break;
+		}
+
+		return '/spreedbox-auth/api/v1/static/scripts';
+	})();
+	var baseAPIURL = baseScriptURL.split('/static/', 2)[0];
 
 	function encodeParams(params) {
 		var result = [];
@@ -178,7 +205,7 @@
 	var authorizeDefaultOptions = {
 		response_type: 'id_token token',
 		scope: 'openid',
-		authorize_url: '/spreedbox-auth/api/v1/authorize'
+		authorize_url: baseAPIURL + '/authorize'
 	};
 	function authorize(opts) {
 		var options = mergeOptions(opts, authorizeDefaultOptions);
@@ -307,6 +334,7 @@
 
 	function setCurrentAuth(auth) {
 		if (auth && !auth.hasOwnProperty('received_at')) {
+			console.log('set received at');
 			auth.received_at = new Date().getTime();
 		}
 		authorizeCurrent = auth;
@@ -336,8 +364,13 @@
 		var data = JSON.parse(s);
 		switch (data.v) {
 			case 1:
-				if (!isAuthExpired(data.auth)) {
-					setCurrentAuth(data.auth);
+				var auth = data.auth;
+				if (!isAuthExpired(auth)) {
+					auth.expires_in = (auth.received_at + auth.expires_in * 1000 - (new Date().getTime())) / 1000;
+					//console.log('compute new expires_in', auth.expires_in * 1000);
+					if (auth.expires_in > 10) {
+						setCurrentAuth(auth);
+					}
 				}
 				break;
 		}
@@ -346,7 +379,9 @@
 
 	function isAuthExpired(auth) {
 		var now = new Date().getTime();
-		if (auth.received_at + (auth.expires_in * 1000 / 100 * 80) < now) {
+		var grace = auth.expires_in * 1000 / 100 * 80;
+		if (auth.received_at + grace < now) {
+			//console.log('auth expired', grace, now-auth.received_at, now, auth.received_at);
 			return true;
 		}
 
@@ -429,7 +464,7 @@
 
 	// Refresher app.
 	var refresherDefaultOptions = {
-		refresher_url: '/spreedbox-auth/api/v1/static/refresher.html',
+		refresher_url: baseScriptURL + '/../refresher.html',
 		cache: true
 	};
 	function RefresherApp(opts) {
@@ -466,6 +501,7 @@
 						if (refreshSeconds > 3600) {
 							refreshSeconds = 3600;
 						}
+						//console.info('refresh in ', refreshSeconds, ' seconds', auth.expires_in);
 						refresher.timer = window.setTimeout(function() {
 							refresher.refresh();
 						}, refreshSeconds * 1000);
@@ -584,9 +620,44 @@
 		refresher: RefresherApp,
 		handler: HandlerApp
 	};
+	spreedboxAuth.run = {
+		authorize: function() {
+			authorize();
+		},
+		refresh: function() {
+			// Create Handler app instance without prompt.
+			var handler = HandlerApp({prompt: 'none'});
+			// Bind global run function (is called by parent).
+			window.run = function(currentAuth, handleFunc, options, cb) {
+				handler.setup(handleFunc, options);
+				if (currentAuth) {
+					window.setTimeout(function() {
+						handleFunc(currentAuth, null, cb);
+					}, 0);
+					return;
+				}
+				handler.authorize(cb);
+			};
+			// Bind global authorize function (is called by parent).
+			window.authorize = function(cb) {
+				handler.authorize(cb);
+			};
+		}
+	};
 	RedirectorApp.defaultOptions = redirectorDefaultOptions;
 	RefresherApp.defaultOptions = refresherDefaultOptions;
 	HandlerApp.defaultOptions = handlerDefaultOptions;
+
+	// Auto run support.
+	(function() {
+		var head = document.getElementsByTagName('head')[0];
+		var run = head.getAttribute('spreedbox-auth-run');
+		if (run) {
+			window.addEventListener('load', function spreedboxAuthAutoRun() {
+				spreedboxAuth.run[run]();
+			}, true);
+		}
+	})();
 
 	return spreedboxAuth;
 }));
