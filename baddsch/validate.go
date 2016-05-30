@@ -37,8 +37,9 @@ func (doc *ValidateDocument) Post(r *http.Request) (int, interface{}, http.Heade
 }
 
 type ValidationRequestOptions struct {
-	Authorization  string
-	RequiredClaims map[string]interface{}
+	Authorization   string
+	RequiredClaims  map[string]interface{}
+	IgnoreBlacklist bool
 }
 
 type ValidationRequest struct {
@@ -100,7 +101,7 @@ func (vr *ValidationRequest) Validate(doc *ValidateDocument) (error, string) {
 	}
 
 	// Check if on blacklist.
-	if doc.Blacklist.Has(token.Raw) {
+	if !vr.Options.IgnoreBlacklist && doc.Blacklist.Has(token.Raw) {
 		return errors.New("access_denied"), "Token is on blacklist"
 	}
 

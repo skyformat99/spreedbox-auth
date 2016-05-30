@@ -36,7 +36,8 @@ func NewRevocationRequest(r *http.Request) (*RevocationRequest, error) {
 	if err != nil {
 		return nil, err
 	}
-	vr.TokenType = "" // Allow any token here.
+	vr.TokenType = ""                 // Allow any token here.
+	vr.Options.IgnoreBlacklist = true // Ignore blacklist checks.
 	rr.ValidationRequest = vr
 
 	return rr, nil

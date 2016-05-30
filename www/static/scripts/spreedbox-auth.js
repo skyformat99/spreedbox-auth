@@ -320,6 +320,7 @@
 	}
 
 	var authorizeCurrent = null;
+	var authorizeClearedListeners = [];
 
 	function hasCurrentAuth() {
 		return authorizeCurrent !== null;
@@ -340,7 +341,17 @@
 	}
 
 	function clearCurrentAuth() {
-		setCurrentAuth(null);
+		if (hasCurrentAuth) {
+			setCurrentAuth(null);
+			var length = authorizeClearedListeners.length;
+			for (var i = 0; i < length; i++) {
+				authorizeClearedListeners[i]();
+			}
+		}
+	}
+
+	function registerCurrentAuthClearedListener(f) {
+		authorizeClearedListeners.push(f);
 	}
 
 	function cacheCurrentAuth() {
@@ -401,13 +412,13 @@
 		}
 
 		var token;
-		var token_type_hint = options.token_type_hint;
-		switch (options.token_type_hint) {
+		var tokenTypeHint = options.token_type_hint;
+		switch (tokenTypeHint) {
 			case 'id_token':
 				token = auth.id_token_raw;
 				break;
 			case '':
-				token_type_hint = 'access_token';
+				tokenTypeHint = 'access_token';
 				// fallthrough
 			case 'access_token':
 				token = auth.access_token_raw;
@@ -422,14 +433,14 @@
 
 		var params = {
 			token: token,
-			token_type_hint: token_type_hint
+			token_type_hint: tokenTypeHint
 		};
 
 		var r = new XMLHttpRequest();
 		r.open('POST', options.revocate_url, true);
 		r.setRequestHeader('Authorization', auth.token_type + ' ' + token);
 		r.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-		r.onreadystatechange = function () {
+		r.onreadystatechange = function() {
 			if (r.readyState === 4) { // done
 				if (r.status === 200) { // ok
 					if (options.onSuccess) {
@@ -576,6 +587,11 @@
 				}, null, null);
 			});
 
+			// Register our clear function,
+			registerCurrentAuthClearedListener(function() {
+				refresher.clear();
+			});
+
 			// Always trigger auth after creation.
 			window.setTimeout(function() {
 				trigger(refresher, 'auth', getCurrentAuth(), null);
@@ -585,7 +601,9 @@
 
 		Refresher.prototype.clear = function() {
 			window.clearTimeout(this.timer);
-			clearCurrentAuth();
+			if (hasCurrentAuth()) {
+				clearCurrentAuth();
+			}
 			trigger(this, 'auth', null, null);
 		};
 
@@ -672,10 +690,10 @@
 		};
 
 		function Logout(settings) {
-			revocate(settings)
+			revocate(settings);
 		}
 
-		return new Logout(options)
+		return new Logout(options);
 	}
 
 	// Expose public API.
