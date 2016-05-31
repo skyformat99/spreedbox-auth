@@ -1,3 +1,9 @@
+spreedbox-auth (0.2.6) trusty; urgency=medium
+
+  * Do not trigger same auth multiple times, and add static values as defaults.
+
+ -- Simon Eisenmann <simon@struktur.de>  Tue, 31 May 2016 15:28:02 +0200
+
 spreedbox-auth (0.2.5) trusty; urgency=medium
 
   * Clear current auth cache on logout.
