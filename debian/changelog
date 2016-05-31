@@ -1,3 +1,11 @@
+spreedbox-auth (0.2.5) trusty; urgency=medium
+
+  * Clear current auth cache on logout.
+  * Revocate without auth now triggers success handler and no longer throws 'no auth' exception.
+  * Set current auth only on refresher initial load.
+
+ -- Simon Eisenmann <simon@struktur.de>  Tue, 31 May 2016 14:33:51 +0200
+
 spreedbox-auth (0.2.4) trusty; urgency=medium
 
   * Use relative redirect URL for ownCloud.
