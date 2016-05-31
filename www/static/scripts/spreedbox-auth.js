@@ -408,7 +408,10 @@
 
 		var auth = getCurrentAuth();
 		if (!auth) {
-			throw 'no auth';
+			if (options.onSuccess) {
+				options.onSuccess('no auth');
+			}
+			return;
 		}
 
 		var token;
