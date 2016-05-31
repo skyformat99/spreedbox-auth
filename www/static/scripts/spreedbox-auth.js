@@ -562,8 +562,9 @@
 			this.frame.className = 'spreedbox-auth-refresher';
 			this.frame.style.display = 'none';
 			document.body.appendChild(this.frame);
+			var currentAuth = getCurrentAuth();
 			this.frame.addEventListener('load', function() {
-				this.contentWindow.run(getCurrentAuth(), function(auth, error, cb) {
+				this.contentWindow.run(currentAuth, function(auth, error, cb) {
 					refresher.ready = true;
 					window.clearTimeout(refresher.timer);
 					if (auth) {
@@ -588,6 +589,7 @@
 						cb(auth, error);
 					}
 				}, null, null);
+				currentAuth = null;
 			});
 
 			// Register our clear function,
