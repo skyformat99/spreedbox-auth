@@ -684,6 +684,7 @@
 		var options = mergeOptions(opts, {});
 		options.onSuccess = function() {
 			clearCurrentAuth();
+			cacheCurrentAuth();
 			if (opts && opts.onSuccess) {
 				opts.onSuccess.apply(this, arguments);
 			}
