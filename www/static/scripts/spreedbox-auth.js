@@ -205,7 +205,8 @@
 	var authorizeDefaultOptions = {
 		response_type: 'id_token token',
 		scope: 'openid',
-		authorize_url: baseAPIURL + '/authorize'
+		authorize_url: baseAPIURL + '/authorize',
+		early_expired_percent: 80
 	};
 	function authorize(opts) {
 		var options = mergeOptions(opts, authorizeDefaultOptions);
@@ -389,7 +390,7 @@
 
 	function isAuthExpired(auth) {
 		var now = new Date().getTime();
-		var grace = auth.expires_in * 1000 / 100 * 80;
+		var grace = auth.expires_in * 1000 / 100 * authorizeDefaultOptions.early_expired_percent;
 		if (auth.received_at + grace < now) {
 			//console.log('auth expired', grace, now-auth.received_at, now, auth.received_at);
 			return true;
@@ -536,7 +537,10 @@
 	// Refresher app.
 	var refresherDefaultOptions = {
 		refresher_url: baseScriptURL + '/../refresher.html',
-		cache: true
+		cache: true,
+		load_error_retry_seconds: 10,
+		null_auth_refresh_seconds: 60,
+		early_refresh_percent: 70
 	};
 	function RefresherApp(opts) {
 		var options = mergeOptions(opts, refresherDefaultOptions);
@@ -563,28 +567,49 @@
 			this.frame.style.display = 'none';
 			document.body.appendChild(this.frame);
 			var currentAuth = getCurrentAuth();
+			var currentState = null;
 			this.frame.addEventListener('load', function() {
+				if (!this.contentWindow.run && settings.load_error_retry_seconds > 0) {
+					refresher.timer = window.setTimeout(function() {
+						refresher.frame.setAttribute('src', settings.refresher_url);
+					}, settings.load_error_retry_seconds * 1000);
+					return;
+				}
+
 				this.contentWindow.run(currentAuth, function(auth, error, cb) {
 					refresher.ready = true;
 					window.clearTimeout(refresher.timer);
-					if (auth) {
-						setCurrentAuth(auth);
-						var refreshSeconds = (auth.expires_in || 3600) / 100 * 70;
-						if (refreshSeconds > 3600) {
-							refreshSeconds = 3600;
+					var refreshSeconds = settings.null_auth_refresh_seconds;
+					if (error === null) {
+						if (auth) {
+							setCurrentAuth(auth);
+							refreshSeconds = (auth.expires_in || 3600) / 100 * settings.early_refresh_percent;
+							if (refreshSeconds > 3600) {
+								refreshSeconds = 3600;
+							}
+							//console.info('refresh in ', refreshSeconds, ' seconds', auth.expires_in);
+							if (currentState !== auth.state) {
+								currentState = auth.state;
+								trigger(refresher, 'auth', auth, null);
+							}
+						} else {
+							clearCurrentAuth();
+							trigger(refresher, 'auth', null, null);
 						}
-						//console.info('refresh in ', refreshSeconds, ' seconds', auth.expires_in);
+					} else {
+						trigger(refresher, 'auth', getCurrentAuth(), error);
+					}
+					// Schedule next run.
+					if (refreshSeconds > 0) {
 						refresher.timer = window.setTimeout(function() {
 							refresher.refresh();
 						}, refreshSeconds * 1000);
-						trigger(refresher, 'auth', auth, error);
-					} else {
-						clearCurrentAuth();
-						trigger(refresher, 'auth', null, error);
 					}
+					// Cache support.
 					if (settings.cache) {
 						cacheCurrentAuth();
 					}
+					// Callback.
 					if (cb) {
 						cb(auth, error);
 					}
@@ -599,7 +624,10 @@
 
 			// Always trigger auth after creation.
 			window.setTimeout(function() {
-				trigger(refresher, 'auth', getCurrentAuth(), null);
+				if (currentAuth) {
+					currentState = currentAuth.state;
+				}
+				trigger(refresher, 'auth', currentAuth, null);
 				refresher.frame.setAttribute('src', settings.refresher_url);
 			}, 0);
 		}
