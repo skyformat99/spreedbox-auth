@@ -4,7 +4,6 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
 	"time"
 
