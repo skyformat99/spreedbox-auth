@@ -42,7 +42,7 @@ angular.module('ngSpreedboxAuth', [])
 		}];
 
 		// Factory.
-		this.$get = ['$rootScope', function spreedboxAuthFactory($rootScope) {
+		this.$get = ['$rootScope', '$window', function spreedboxAuthFactory($rootScope, $window) {
 			function SpreedboxAuth() {
 			}
 
