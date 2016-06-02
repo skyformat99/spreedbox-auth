@@ -1,3 +1,11 @@
+spreedbox-auth (0.3.0) trusty; urgency=medium
+
+  * Support iss, sub and aud claim validation.
+  * Run validation in parallel.
+  * Add angular module.
+
+ -- Simon Eisenmann <simon@struktur.de>  Thu, 02 Jun 2016 16:51:48 +0200
+
 spreedbox-auth (0.2.6) trusty; urgency=medium
 
   * Do not trigger same auth multiple times, and add static values as defaults.
