@@ -83,6 +83,12 @@ func (s *Server) validate(subject, reply string, msg *auth.ValidateRequest) {
 		return
 	}
 
+	// Process incoming requests in parallel. Could also be done with a
+	// channel and multiple worker go routines.
+	go s.doValidate(subject, reply, msg)
+}
+
+func (s *Server) doValidate(subject, reply string, msg *auth.ValidateRequest) {
 	request := &baddsch.ValidationRequest{
 		Options: &baddsch.ValidationRequestOptions{
 			Authorization:  msg.Authorization,
