@@ -1,3 +1,9 @@
+spreedbox-auth (0.3.1) trusty; urgency=medium
+
+  * Add missing inject.
+
+ -- Simon Eisenmann <simon@struktur.de>  Thu, 02 Jun 2016 18:02:48 +0200
+
 spreedbox-auth (0.3.0) trusty; urgency=medium
 
   * Support iss, sub and aud claim validation.
