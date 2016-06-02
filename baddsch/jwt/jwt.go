@@ -4,6 +4,7 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
 	"time"
 
@@ -139,13 +140,31 @@ func (c *Claims) CheckInterface(name string, expected interface{}) bool {
 	return false
 }
 
-func (c *Claims) ValidateRequiredClaims(requiredClaims map[string]interface{}) error {
+func (c *Claims) ValidateRequiredClaims(requiredClaims map[string]interface{}) (err error) {
 	for k, v := range requiredClaims {
-		if valid := c.CheckInterface(k, v); !valid {
-			return fmt.Errorf("claim validation failed: %s", k)
+		switch k {
+		case "iss":
+			vs, _ := v.(string)
+			if c.Iss != vs {
+				err = fmt.Errorf("claim validation failed: iss")
+			}
+		case "sub":
+			vs, _ := v.(string)
+			if c.Sub != vs {
+				err = fmt.Errorf("claim validation failed: sub")
+			}
+		case "aud":
+			vs, _ := v.(string)
+			if c.Aud != vs {
+				err = fmt.Errorf("claim validation failed: aud")
+			}
+		default:
+			if valid := c.CheckInterface(k, v); !valid {
+				err = fmt.Errorf("claim validation failed: %s", k)
+			}
 		}
 	}
-	return nil
+	return err
 }
 
 func Encode(header *Header, claims *Claims, duration *time.Duration, key crypto.PrivateKey) (*Token, error) {
