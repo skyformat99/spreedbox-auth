@@ -408,15 +408,17 @@ done:
 }
 
 func (ar *AuthenticationRequest) Redirect(url *url.URL, params interface{}, fragment bool) (int, interface{}, http.Header) {
+	var urlString string
 	v, _ := query.Values(params)
 	if fragment {
-		url.Fragment = v.Encode()
+		urlString = fmt.Sprintf("%s#%s", url.String(), v.Encode())
 	} else {
 		url.RawQuery = v.Encode()
+		urlString = url.String()
 	}
 
 	return http.StatusFound, "", http.Header{
-		"Location":      {url.String()},
+		"Location":      {urlString},
 		"Cache-Control": {"no-store"},
 		"Pragma":        {"no-cache"},
 	}
@@ -440,7 +442,7 @@ func (ar *AuthenticationRequest) SessionState(browserState string) string {
 	salt := randomstring.NewRandomString(8)
 	hasher.Write([]byte(salt))
 
-	return fmt.Sprintf("%s.%s", base64.URLEncoding.EncodeToString(hasher.Sum(nil)), salt)
+	return fmt.Sprintf("%s.%s", base64.StdEncoding.EncodeToString(hasher.Sum(nil)), salt)
 }
 
 type AuthenticationSuccessResponse struct {
