@@ -58,6 +58,14 @@
 		return result;
 	}
 
+	function getCookie(name) {
+		var value = '; ' + document.cookie;
+		var parts = value.split('; ' + name + '=');
+		if (parts.length === 2) {
+			return parts.pop().split(';').shift();
+		}
+	}
+
 	function getRandomString(length) {
 		if (!length || length < 0) {
 			length = 12;
@@ -435,7 +443,7 @@
 		shaObj.update(browserState);
 		shaObj.update(' ');
 		shaObj.update(salt);
-		var sessionState = shaObj.getHash('B64');
+		var sessionState = shaObj.getHash('B64') + '.' + salt;
 
 		return sessionState == auth.session_state;
 	}
@@ -585,7 +593,9 @@
 		cache: true,
 		load_error_retry_seconds: 10,
 		null_auth_refresh_seconds: 60,
-		early_refresh_percent: 70
+		early_refresh_percent: 70,
+		browser_state_cookie_name: 'oc_spreedbox',
+		browser_state_check_seconds: 120
 	};
 	function RefresherApp(opts) {
 		var options = mergeOptions(opts, refresherDefaultOptions);
@@ -658,7 +668,7 @@
 					if (cb) {
 						cb(auth, error);
 					}
-				}, null, null);
+				}, settings, null);
 				currentAuth = null;
 			});
 
@@ -810,16 +820,38 @@
 			window.run = function(currentAuth, handleFunc, options, cb) {
 				handler.setup(handleFunc, options);
 				if (currentAuth) {
+					setCurrentAuth(currentAuth);
 					window.setTimeout(function() {
 						handleFunc(currentAuth, null, cb);
 					}, 0);
 					return;
 				}
 				handler.authorize(cb);
+				if (options && options.browser_state_check_seconds) {
+					window.setInterval(function() {
+						window.validate(options.browser_state_cookie_name, cb);
+					}, options.browser_state_check_seconds * 1000);
+				}
 			};
 			// Bind global authorize function (is called by parent).
 			window.authorize = function(cb) {
 				handler.authorize(cb);
+			};
+			// Add a validate function for session state validation.
+			var origin = location.protocol + '//' + location.host;
+			window.validate = function(cookieName, cb) {
+				if (cookieName && hasCurrentAuth()) {
+					var browserState = getCookie(cookieName);
+					if (!browserState) {
+						browserState = 'provider_without_state';
+					}
+					var valid = validateSessionState(currentURL, origin, browserState);
+					if (!valid) {
+						window.setTimeout(function() {
+							handler.authorize(cb);
+						}, 0);
+					}
+				}
 			};
 		}
 	};

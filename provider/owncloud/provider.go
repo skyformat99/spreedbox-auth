@@ -27,7 +27,7 @@ func NewProvider(url string, config *ProviderConfig) (baddsch.AuthProvider, erro
 	}
 
 	return httpauth.NewProvider(fullURL, func(message []byte, cookies []*http.Cookie, err error) (baddsch.AuthProvided, error) {
-		if true {
+		if false {
 			// XXX(longsleep): Development helper.
 			testResponse := &spreedmePluginUserConfig{
 				true,
