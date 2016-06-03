@@ -28,6 +28,7 @@ type AuthorizeDocument struct {
 	TokenDuration         time.Duration
 	TokenAccessTokenClaim string
 	TokenPrivateKey       crypto.PrivateKey
+	TokenPublicKey        crypto.PublicKey
 	AuthProvider          AuthProvider
 }
 
@@ -78,6 +79,7 @@ type AuthenticationRequest struct {
 	State        string                        `schema:"state"`
 	Scope        string                        `schema:"scope"`
 	Prompt       string                        `schema:"prompt"`
+	IDTokenHint  string                        `schema:"id_token_hint"`
 	userID       string                        `schema:"-"`
 	clientID     string                        `schema:"-"`
 }
@@ -224,16 +226,53 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvi
 }
 
 func (ar *AuthenticationRequest) Authorize(doc *AuthorizeDocument, authProvided AuthProvided) (AuthProvided, error, string) {
-	if authProvided == nil {
-		// Create dummy false auth which will always fail all checks if
-		// we do not have another provided value at this point.
-		authProvided = &NoAuthProvided{}
-	} else {
-		if success := authProvided.Authorize(); success {
-			return authProvided, nil, ""
+	var err error
+
+	for {
+		// No provider?
+		if authProvided == nil {
+			// Create dummy false auth which will always fail all checks if
+			// we do not have another provided value at this point.
+			authProvided = &NoAuthProvided{}
+			break
 		}
+
+		// Check what the privider has to say.
+		if !authProvided.Authorize() {
+			break
+		}
+
+		// Check ID token hint to match.
+		if ar.IDTokenHint != "" {
+			if _, err = jwt.Decode(ar.IDTokenHint, func(header *jwt.Header, claims *jwt.Claims) (interface{}, error) {
+				if header.Alg != doc.TokenAlg {
+					return nil, fmt.Errorf("unexpected signing method: %v", header.Alg)
+				}
+				if ar.userID != claims.Sub {
+					return nil, fmt.Errorf("wrong user")
+				}
+
+				// Ignore expiration.
+				claims.IgnoreValidate("exp")
+
+				return doc.TokenPublicKey, nil
+			}); err != nil {
+				// ID token provided by hint is either invalid our the additional
+				// checks above failed. Means this is an error according to spec
+				// at http://openid.net/specs/openid-connect-core-1_0.html#AuthRequestValidation
+				break
+			}
+		}
+
+		// Reached the end, so nothing failed.
+		return authProvided, nil, ""
 	}
-	return authProvided, errors.New("access_denied"), "authorization failed"
+
+	if err == nil {
+		err = fmt.Errorf("authorization failed")
+	}
+
+	return authProvided, errors.New("access_denied"), err.Error()
 }
 
 func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interface{}, http.Header) {
@@ -394,6 +433,7 @@ func (ar *AuthenticationRequest) SessionState(browserState string) string {
 	hasher.Write([]byte(browserState))
 	hasher.Write([]byte(" "))
 	salt := randomstring.NewRandomString(8)
+	hasher.Write([]byte(salt))
 
 	return fmt.Sprintf("%s.%s", base64.URLEncoding.EncodeToString(hasher.Sum(nil)), salt)
 }

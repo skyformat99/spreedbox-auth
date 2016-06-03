@@ -315,12 +315,16 @@
 				query.prompt = options.prompt;
 			}
 		}
+		if (authorizeCurrentID.id_token_raw) {
+			query.id_token_hint = authorizeCurrentID.id_token_raw;
+		}
 
 		// Redirect to authorize end point.
 		location.replace(options.authorize_url + '?' + encodeParams(query));
 	}
 
 	var authorizeCurrent = null;
+	var authorizeCurrentID = {};
 	var authorizeClearedListeners = [];
 
 	function hasCurrentAuth() {
@@ -338,6 +342,10 @@
 		if (auth && !auth.hasOwnProperty('received_at')) {
 			auth.received_at = new Date().getTime();
 		}
+		if (auth && auth.id_token_raw) {
+			authorizeCurrentID.id_token_raw = auth.id_token_raw;
+			authorizeCurrentID.id_token = auth.id_token;
+		}
 		authorizeCurrent = auth;
 	}
 
@@ -349,6 +357,11 @@
 				authorizeClearedListeners[i]();
 			}
 		}
+	}
+
+	function clearCurrentAuthID() {
+		delete authorizeCurrentID.id_token_raw;
+		delete authorizeCurrentID.id_token;
 	}
 
 	function registerCurrentAuthClearedListener(f) {
@@ -722,6 +735,7 @@
 		options.onSuccess = function() {
 			clearCurrentAuth();
 			cacheCurrentAuth();
+			clearCurrentAuthID();
 			if (opts && opts.onSuccess) {
 				opts.onSuccess.apply(this, arguments);
 			}

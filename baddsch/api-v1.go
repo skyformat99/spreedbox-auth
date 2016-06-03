@@ -68,6 +68,7 @@ func (api *APIv1) AddResources(holder APIResourceHolder, authProvider AuthProvid
 		TokenDuration:         time.Duration(api.Config.GetIntDefault("auth", "tokenDuration", 3600)) * time.Second,
 		TokenAccessTokenClaim: tokenAccessTokenClaim,
 		TokenPrivateKey:       tokenPrivateKey,
+		TokenPublicKey:        tokenPrivateKey.Public(),
 		AuthProvider:          authProvider,
 	}
 
