@@ -412,6 +412,34 @@
 		return false;
 	}
 
+	function validateSessionState(clientID, origin, browserState) {
+		// Validate session state - see http://openid.net/specs/openid-connect-session-1_0.html#OPiframe
+		// for details and base specification.
+
+		var auth = getCurrentAuth();
+		if (!auth) {
+			return false;
+		}
+
+		if (!auth.session_state) {
+			// No session state in auth is a success (means no session).
+			return true;
+		}
+
+		var salt = auth.session_state.split('.')[1];
+		var shaObj = new JsSHA('SHA-256', 'TEXT');
+		shaObj.update(clientID);
+		shaObj.update(' ');
+		shaObj.update(origin);
+		shaObj.update(' ');
+		shaObj.update(browserState);
+		shaObj.update(' ');
+		shaObj.update(salt);
+		var sessionState = shaObj.getHash('B64');
+
+		return sessionState == auth.session_state;
+	}
+
 	// Revocate app.
 	var revocateDefaultOptions = {
 		token_type_hint: 'access_token',
@@ -761,6 +789,9 @@
 	spreedboxAuth.revocate = revocate;
 	spreedboxAuth.revocate.defaultOptions = revocateDefaultOptions;
 	spreedboxAuth.get = getCurrentAuth;
+	spreedboxAuth.session = {
+		validate: validateSessionState
+	};
 	spreedboxAuth.app = {
 		redirector: RedirectorApp,
 		refresher: RefresherApp,
