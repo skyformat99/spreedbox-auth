@@ -38,6 +38,7 @@ func (s *Server) Serve(runtime phoenix.Runtime) (err error) {
 				runtime.GetBoolDefault("provider", "owncloudSkipSSLValidation", owncloud.DefaultProviderSkipSSLValidation),
 				runtime.GetIntDefault("provider", "owncloudConnectionPoolSize", owncloud.DefaultProviderPoolSize),
 				runtime.GetStringDefault("provider", "owncloudLoginFormURL", owncloud.DefaultProviderLoginFormURL),
+				runtime.GetStringDefault("provider", "owncloudBrowserStateCookieName", owncloud.DefaultProviderBrowserStateCookieName),
 			)
 			authProvider, _ = owncloud.NewProvider(owncloudURL, conf)
 		} else {

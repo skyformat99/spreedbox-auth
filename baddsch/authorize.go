@@ -2,8 +2,10 @@ package baddsch
 
 import (
 	"crypto"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -11,6 +13,7 @@ import (
 	"time"
 
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch/jwt"
+	"golang.struktur.de/spreedbox/spreedbox-auth/randomstring"
 
 	"github.com/google/go-querystring/query"
 )
@@ -25,6 +28,7 @@ type AuthorizeDocument struct {
 	TokenDuration         time.Duration
 	TokenAccessTokenClaim string
 	TokenPrivateKey       crypto.PrivateKey
+	TokenPublicKey        crypto.PublicKey
 	AuthProvider          AuthProvider
 }
 
@@ -58,11 +62,12 @@ func (doc *AuthorizeDocument) Post(r *http.Request) (int, interface{}, http.Head
 }
 
 type AuthenticationRequestOptions struct {
-	RedirectURL   *url.URL
-	UseFragment   bool
-	Authorization string
-	ResponseTypes map[string]bool
-	Scopes        map[string]bool
+	RedirectURL      *url.URL
+	UseFragment      bool
+	Authorization    string
+	ResponseTypes    map[string]bool
+	Scopes           map[string]bool
+	WithSessionState bool
 }
 
 type AuthenticationRequest struct {
@@ -74,6 +79,7 @@ type AuthenticationRequest struct {
 	State        string                        `schema:"state"`
 	Scope        string                        `schema:"scope"`
 	Prompt       string                        `schema:"prompt"`
+	IDTokenHint  string                        `schema:"id_token_hint"`
 	userID       string                        `schema:"-"`
 	clientID     string                        `schema:"-"`
 }
@@ -188,6 +194,7 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvi
 		fallthrough
 	case "":
 		log.Printf("cookie authentication request\n")
+		ar.Options.WithSessionState = true // Enable session state for cookie based auth.
 		cookies := ar.Request.Cookies()
 		if doc.AuthProvider != nil {
 			authProvided, err = doc.AuthProvider.Authorization("", cookies)
@@ -219,16 +226,53 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvi
 }
 
 func (ar *AuthenticationRequest) Authorize(doc *AuthorizeDocument, authProvided AuthProvided) (AuthProvided, error, string) {
-	if authProvided == nil {
-		// Create dummy false auth which will always fail all checks if
-		// we do not have another provided value at this point.
-		authProvided = &NoAuthProvided{}
-	} else {
-		if success := authProvided.Authorize(); success {
-			return authProvided, nil, ""
+	var err error
+
+	for {
+		// No provider?
+		if authProvided == nil {
+			// Create dummy false auth which will always fail all checks if
+			// we do not have another provided value at this point.
+			authProvided = &NoAuthProvided{}
+			break
 		}
+
+		// Check what the privider has to say.
+		if !authProvided.Authorize() {
+			break
+		}
+
+		// Check ID token hint to match.
+		if ar.IDTokenHint != "" {
+			if _, err = jwt.Decode(ar.IDTokenHint, func(header *jwt.Header, claims *jwt.Claims) (interface{}, error) {
+				if header.Alg != doc.TokenAlg {
+					return nil, fmt.Errorf("unexpected signing method: %v", header.Alg)
+				}
+				if ar.userID != claims.Sub {
+					return nil, fmt.Errorf("wrong user")
+				}
+
+				// Ignore expiration.
+				claims.IgnoreValidate("exp")
+
+				return doc.TokenPublicKey, nil
+			}); err != nil {
+				// ID token provided by hint is either invalid our the additional
+				// checks above failed. Means this is an error according to spec
+				// at http://openid.net/specs/openid-connect-core-1_0.html#AuthRequestValidation
+				break
+			}
+		}
+
+		// Reached the end, so nothing failed.
+		return authProvided, nil, ""
 	}
-	return authProvided, errors.New("access_denied"), "authorization failed"
+
+	if err == nil {
+		err = fmt.Errorf("authorization failed")
+	}
+
+	return authProvided, errors.New("access_denied"), err.Error()
 }
 
 func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interface{}, http.Header) {
@@ -321,8 +365,11 @@ done:
 		// Return error response.
 		errResponse := &AuthenticationErrorResponse{
 			Error:            err.Error(),
-			State:            ar.State,
 			ErrorDescription: errDescription,
+			State:            ar.State,
+		}
+		if ar.Options.WithSessionState {
+			errResponse.SessionState = ar.SessionState(err.Error())
 		}
 		log.Println("authorize failed http", err, errDescription)
 		return ar.Redirect(ar.Options.RedirectURL, errResponse, ar.Options.UseFragment)
@@ -330,6 +377,18 @@ done:
 
 	successResponse := &AuthenticationSuccessResponse{
 		State: ar.State,
+	}
+
+	if ar.Options.WithSessionState {
+		var browserState string
+		if authProvided != nil {
+			if providedBrowserState, ok := authProvided.BrowserState(); ok {
+				browserState = providedBrowserState
+			} else {
+				browserState = "provider_without_state"
+			}
+		}
+		successResponse.SessionState = ar.SessionState(browserState)
 	}
 
 	if _, ok := ar.Options.ResponseTypes["token"]; ok {
@@ -349,30 +408,55 @@ done:
 }
 
 func (ar *AuthenticationRequest) Redirect(url *url.URL, params interface{}, fragment bool) (int, interface{}, http.Header) {
+	var urlString string
 	v, _ := query.Values(params)
 	if fragment {
-		url.Fragment = v.Encode()
+		urlString = fmt.Sprintf("%s#%s", url.String(), v.Encode())
 	} else {
 		url.RawQuery = v.Encode()
+		urlString = url.String()
 	}
 
 	return http.StatusFound, "", http.Header{
-		"Location":      {url.String()},
+		"Location":      {urlString},
 		"Cache-Control": {"no-store"},
 		"Pragma":        {"no-cache"},
 	}
 }
 
+func (ar *AuthenticationRequest) SessionState(browserState string) string {
+	origin := ar.Request.Header.Get("Origin")
+	if origin == "" {
+		origin = fmt.Sprintf("https://%s", ar.Request.Host)
+	}
+
+	// Create sessionState.
+	// sha256(clientID + " " + origin + " " + browserState + " " + salt) + "." + salt
+	hasher := sha256.New()
+	hasher.Write([]byte(ar.clientID))
+	hasher.Write([]byte(" "))
+	hasher.Write([]byte(origin))
+	hasher.Write([]byte(" "))
+	hasher.Write([]byte(browserState))
+	hasher.Write([]byte(" "))
+	salt := randomstring.NewRandomString(8)
+	hasher.Write([]byte(salt))
+
+	return fmt.Sprintf("%s.%s", base64.StdEncoding.EncodeToString(hasher.Sum(nil)), salt)
+}
+
 type AuthenticationSuccessResponse struct {
-	AccessToken string `url:"access_token,omitempty"`
-	TokenType   string `url:"token_type,omitempty"`
-	IDToken     string `url:"id_token,omitempty"`
-	State       string `url:"state"`
-	ExpiresIn   int64  `url:"expires_in,omitempty"`
+	AccessToken  string `url:"access_token,omitempty"`
+	TokenType    string `url:"token_type,omitempty"`
+	IDToken      string `url:"id_token,omitempty"`
+	State        string `url:"state"`
+	ExpiresIn    int64  `url:"expires_in,omitempty"`
+	SessionState string `url:"session_state,omitempty"`
 }
 
 type AuthenticationErrorResponse struct {
 	Error            string `url:"error"`
 	ErrorDescription string `url:"error_description,omitempty"`
 	State            string `url:"state,omitempty"`
+	SessionState     string `url:"session_state,omitempty"`
 }

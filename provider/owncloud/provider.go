@@ -12,18 +12,21 @@ import (
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch/httpauth"
 )
 
-var DefaultConfigEndpoint = "api/v1/user/config"
-var DefaultProviderPoolSize = 4
-var DefaultProviderSkipSSLValidation = false
-var DefaultProviderLoginFormURL = "/"
+var (
+	DefaultConfigEndpoint                 = "api/v1/user/config"
+	DefaultProviderPoolSize               = 4
+	DefaultProviderSkipSSLValidation      = false
+	DefaultProviderLoginFormURL           = "/"
+	DefaultProviderBrowserStateCookieName = "oc_spreedbox"
+)
 
 func NewProvider(url string, config *ProviderConfig) (baddsch.AuthProvider, error) {
 	fullURL := fmt.Sprintf("%s/%s", url, DefaultConfigEndpoint)
 	if config == nil {
-		config = NewProviderConfig(DefaultProviderSkipSSLValidation, DefaultProviderPoolSize, DefaultProviderLoginFormURL)
+		config = NewProviderConfig(DefaultProviderSkipSSLValidation, DefaultProviderPoolSize, DefaultProviderLoginFormURL, DefaultProviderBrowserStateCookieName)
 	}
 
-	return httpauth.NewProvider(fullURL, func(message []byte, err error) (baddsch.AuthProvided, error) {
+	return httpauth.NewProvider(fullURL, func(message []byte, cookies []*http.Cookie, err error) (baddsch.AuthProvided, error) {
 		if false {
 			// XXX(longsleep): Development helper.
 			testResponse := &spreedmePluginUserConfig{
@@ -31,8 +34,9 @@ func NewProvider(url string, config *ProviderConfig) (baddsch.AuthProvider, erro
 				"admin",
 				"Debug Admin",
 				true,
+				true,
 			}
-			return newAuthProvided(config, testResponse), nil
+			return newAuthProvided(config, testResponse, ""), nil
 		}
 
 		switch err {
@@ -42,7 +46,7 @@ func NewProvider(url string, config *ProviderConfig) (baddsch.AuthProvider, erro
 			fallthrough
 		case httpauth.ErrStatusUnauthorized:
 			// Owncloud returns auth errors as 401.
-			return newAuthProvided(config, nil), nil
+			return newAuthProvided(config, nil, ""), nil
 		default:
 			return nil, err
 		}
@@ -53,27 +57,40 @@ func NewProvider(url string, config *ProviderConfig) (baddsch.AuthProvider, erro
 			return nil, err
 		}
 
-		return newAuthProvided(config, &response), nil
+		var browserState string
+		if cookies != nil && config.browserStateCookieName != "" {
+			// Add browser state from cookie.
+			for _, cookie := range cookies {
+				if cookie.Name == config.browserStateCookieName {
+					browserState = cookie.Value
+					break
+				}
+			}
+		}
+
+		return newAuthProvided(config, &response, browserState), nil
 	}, config)
 }
 
 type spreedmePluginUserConfig struct {
-	Success     bool   `json:"success"`
-	ID          string `json:"id"`
-	DisplayName string `json:"display_name"`
-	IsAdmin     bool   `json:"is_admin"`
+	Success         bool   `json:"success"`
+	ID              string `json:"id"`
+	DisplayName     string `json:"display_name"`
+	IsAdmin         bool   `json:"is_admin"`
+	IsSpreedmeAdmin bool   `json:"is_spreedme_admin"`
 }
 
 type authProvided struct {
 	providerConfig *ProviderConfig
 	userConfig     *spreedmePluginUserConfig
+	browserState   string
 }
 
-func newAuthProvided(providerConfig *ProviderConfig, userConfig *spreedmePluginUserConfig) *authProvided {
+func newAuthProvided(providerConfig *ProviderConfig, userConfig *spreedmePluginUserConfig, browserState string) *authProvided {
 	if userConfig == nil {
 		userConfig = &spreedmePluginUserConfig{}
 	}
-	return &authProvided{providerConfig, userConfig}
+	return &authProvided{providerConfig, userConfig, browserState}
 }
 
 func (ap *authProvided) Status() bool {
@@ -86,8 +103,9 @@ func (ap *authProvided) UserID() string {
 
 func (ap *authProvided) PrivateClaims() map[string]interface{} {
 	claims := map[string]interface{}{
-		owncloud.DisplayNameClaimID: ap.userConfig.DisplayName,
-		owncloud.IsAdminClaimID:     ap.userConfig.IsAdmin,
+		owncloud.DisplayNameClaimID:     ap.userConfig.DisplayName,
+		owncloud.IsAdminClaimID:         ap.userConfig.IsAdmin,
+		owncloud.IsSpreedmeAdminClaimID: ap.userConfig.IsSpreedmeAdmin,
 	}
 	return claims
 }
@@ -124,14 +142,24 @@ func (ap *authProvided) RedirectError(err error, ar *baddsch.AuthenticationReque
 	}
 }
 
-type ProviderConfig struct {
-	skipSSLValidation bool
-	poolSize          int
-	loginFormURL      string
+func (ap *authProvided) BrowserState() (string, bool) {
+	result := false
+	if ap.browserState != "" {
+		result = true
+	}
+
+	return ap.browserState, result
 }
 
-func NewProviderConfig(skipSSLValidation bool, poolSize int, loginFormURL string) *ProviderConfig {
-	return &ProviderConfig{skipSSLValidation, poolSize, loginFormURL}
+type ProviderConfig struct {
+	skipSSLValidation      bool
+	poolSize               int
+	loginFormURL           string
+	browserStateCookieName string
+}
+
+func NewProviderConfig(skipSSLValidation bool, poolSize int, loginFormURL string, browserStateCookieName string) *ProviderConfig {
+	return &ProviderConfig{skipSSLValidation, poolSize, loginFormURL, browserStateCookieName}
 }
 
 func (apc *ProviderConfig) SkipSSLValidation() bool {

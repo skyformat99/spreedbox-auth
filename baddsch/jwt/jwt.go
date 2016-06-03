@@ -46,6 +46,7 @@ func (h *Header) SigningMethod() (jwtgo.SigningMethod, error) {
 }
 
 type Claims struct {
+	data map[string]interface{}
 	// http://openid.net/specs/openid-connect-core-1_0.html#IDToken
 	Iss           string                 `json:"iss"`
 	Aud           string                 `json:"aud"`
@@ -59,6 +60,7 @@ type Claims struct {
 
 func NewClaims(data map[string]interface{}) *Claims {
 	c := &Claims{
+		data:          data,
 		PrivateClaims: make(map[string]interface{}),
 	}
 	for k, v := range data {
@@ -164,6 +166,12 @@ func (c *Claims) ValidateRequiredClaims(requiredClaims map[string]interface{}) (
 		}
 	}
 	return err
+}
+
+// IgnoreValidate removes claims from raw token data. Use this to ignore
+// certain token content while validating (eg. exp).
+func (c *Claims) IgnoreValidate(name string) {
+	delete(c.data, name)
 }
 
 func Encode(header *Header, claims *Claims, duration *time.Duration, key crypto.PrivateKey) (*Token, error) {
