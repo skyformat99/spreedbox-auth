@@ -1,3 +1,14 @@
+spreedbox-auth (0.3.2) trusty; urgency=medium
+
+  * Implement session_state according to http://openid.net/specs/openid-connect-session-1_0.html
+  * Implement token_id_hint parameter for authorize.
+  * Use own host and https when origin request header is empty.
+  * Avoid double encode of hash.
+  * Implement validator for session state.
+  * Add session_state validation to javascript.
+
+ -- Simon Eisenmann <simon@struktur.de>  Fri, 03 Jun 2016 17:06:59 +0200
+
 spreedbox-auth (0.3.1) trusty; urgency=medium
 
   * Add missing inject.
