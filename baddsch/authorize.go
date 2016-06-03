@@ -423,12 +423,17 @@ func (ar *AuthenticationRequest) Redirect(url *url.URL, params interface{}, frag
 }
 
 func (ar *AuthenticationRequest) SessionState(browserState string) string {
+	origin := ar.Request.Header.Get("Origin")
+	if origin == "" {
+		origin = fmt.Sprintf("https://%s", ar.Request.Host)
+	}
+
 	// Create sessionState.
-	// sha256(clientID + " " + request.Header.Origin + " " + browserState + " " + salt) + "." + salt
+	// sha256(clientID + " " + origin + " " + browserState + " " + salt) + "." + salt
 	hasher := sha256.New()
 	hasher.Write([]byte(ar.clientID))
 	hasher.Write([]byte(" "))
-	hasher.Write([]byte(ar.Request.Header.Get("Origin")))
+	hasher.Write([]byte(origin))
 	hasher.Write([]byte(" "))
 	hasher.Write([]byte(browserState))
 	hasher.Write([]byte(" "))
