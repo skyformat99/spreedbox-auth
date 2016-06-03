@@ -2,8 +2,10 @@ package baddsch
 
 import (
 	"crypto"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -11,6 +13,7 @@ import (
 	"time"
 
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch/jwt"
+	"golang.struktur.de/spreedbox/spreedbox-auth/randomstring"
 
 	"github.com/google/go-querystring/query"
 )
@@ -58,11 +61,12 @@ func (doc *AuthorizeDocument) Post(r *http.Request) (int, interface{}, http.Head
 }
 
 type AuthenticationRequestOptions struct {
-	RedirectURL   *url.URL
-	UseFragment   bool
-	Authorization string
-	ResponseTypes map[string]bool
-	Scopes        map[string]bool
+	RedirectURL      *url.URL
+	UseFragment      bool
+	Authorization    string
+	ResponseTypes    map[string]bool
+	Scopes           map[string]bool
+	WithSessionState bool
 }
 
 type AuthenticationRequest struct {
@@ -188,6 +192,7 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvi
 		fallthrough
 	case "":
 		log.Printf("cookie authentication request\n")
+		ar.Options.WithSessionState = true // Enable session state for cookie based auth.
 		cookies := ar.Request.Cookies()
 		if doc.AuthProvider != nil {
 			authProvided, err = doc.AuthProvider.Authorization("", cookies)
@@ -321,8 +326,11 @@ done:
 		// Return error response.
 		errResponse := &AuthenticationErrorResponse{
 			Error:            err.Error(),
-			State:            ar.State,
 			ErrorDescription: errDescription,
+			State:            ar.State,
+		}
+		if ar.Options.WithSessionState {
+			errResponse.SessionState = ar.SessionState(err.Error())
 		}
 		log.Println("authorize failed http", err, errDescription)
 		return ar.Redirect(ar.Options.RedirectURL, errResponse, ar.Options.UseFragment)
@@ -330,6 +338,18 @@ done:
 
 	successResponse := &AuthenticationSuccessResponse{
 		State: ar.State,
+	}
+
+	if ar.Options.WithSessionState {
+		var browserState string
+		if authProvided != nil {
+			if providedBrowserState, ok := authProvided.BrowserState(); ok {
+				browserState = providedBrowserState
+			} else {
+				browserState = "provider_without_state"
+			}
+		}
+		successResponse.SessionState = ar.SessionState(browserState)
 	}
 
 	if _, ok := ar.Options.ResponseTypes["token"]; ok {
@@ -363,16 +383,33 @@ func (ar *AuthenticationRequest) Redirect(url *url.URL, params interface{}, frag
 	}
 }
 
+func (ar *AuthenticationRequest) SessionState(browserState string) string {
+	// Create sessionState.
+	// sha256(clientID + " " + request.Header.Origin + " " + browserState + " " + salt) + "." + salt
+	hasher := sha256.New()
+	hasher.Write([]byte(ar.clientID))
+	hasher.Write([]byte(" "))
+	hasher.Write([]byte(ar.Request.Header.Get("Origin")))
+	hasher.Write([]byte(" "))
+	hasher.Write([]byte(browserState))
+	hasher.Write([]byte(" "))
+	salt := randomstring.NewRandomString(8)
+
+	return fmt.Sprintf("%s.%s", base64.URLEncoding.EncodeToString(hasher.Sum(nil)), salt)
+}
+
 type AuthenticationSuccessResponse struct {
-	AccessToken string `url:"access_token,omitempty"`
-	TokenType   string `url:"token_type,omitempty"`
-	IDToken     string `url:"id_token,omitempty"`
-	State       string `url:"state"`
-	ExpiresIn   int64  `url:"expires_in,omitempty"`
+	AccessToken  string `url:"access_token,omitempty"`
+	TokenType    string `url:"token_type,omitempty"`
+	IDToken      string `url:"id_token,omitempty"`
+	State        string `url:"state"`
+	ExpiresIn    int64  `url:"expires_in,omitempty"`
+	SessionState string `url:"session_state,omitempty"`
 }
 
 type AuthenticationErrorResponse struct {
 	Error            string `url:"error"`
 	ErrorDescription string `url:"error_description,omitempty"`
 	State            string `url:"state,omitempty"`
+	SessionState     string `url:"session_state,omitempty"`
 }

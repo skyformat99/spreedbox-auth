@@ -50,3 +50,6 @@ tokenPrivateKey = ./server.key
 # owncloudSkipSSLValidation = false
 ## Maximum number of parallel ownCloud connections. Defaults to 4.
 # owncloudConnectionPoolSize = 4
+## Cookie name of additional cookie to use as browser state to compute
+## session state. Defaults to 'oc_spreedbox'.
+# owncloudBrowserStateCookieName = oc_spreedbox

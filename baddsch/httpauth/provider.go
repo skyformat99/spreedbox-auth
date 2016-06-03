@@ -20,7 +20,7 @@ var (
 	httpauthTimingOffsetMax = big.NewInt(300)
 )
 
-type ProvidedHandler func([]byte, error) (baddsch.AuthProvided, error)
+type ProvidedHandler func([]byte, []*http.Cookie, error) (baddsch.AuthProvided, error)
 
 type Provider struct {
 	client     sling.HTTP
@@ -79,5 +79,5 @@ func (provider *Provider) Authorization(authorization string, cookies []*http.Co
 	// Wait until timer reached.
 	<-timer.C
 
-	return provider.handler([]byte(responseData), err)
+	return provider.handler([]byte(responseData), cookies, err)
 }

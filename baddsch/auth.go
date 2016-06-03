@@ -19,6 +19,7 @@ type AuthProvided interface {
 	PrivateClaims() map[string]interface{}
 	Authorize() bool
 	RedirectError(error, *AuthenticationRequest) (int, interface{}, http.Header)
+	BrowserState() (string, bool)
 }
 
 type NoAuthProvided struct{}
@@ -41,4 +42,8 @@ func (nap *NoAuthProvided) Authorize() bool {
 
 func (nap *NoAuthProvided) RedirectError(err error, ar *AuthenticationRequest) (int, interface{}, http.Header) {
 	return http.StatusNotFound, "", nil
+}
+
+func (nap *NoAuthProvided) BrowserState() (string, bool) {
+	return "", false
 }

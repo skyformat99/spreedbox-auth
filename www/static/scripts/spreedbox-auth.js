@@ -478,6 +478,9 @@
 			}
 
 			if (!target) {
+				if (query.debug) {
+					console.info('spreedbox-auth', params);
+				}
 				return;
 			}
 			var link = document.createElement('a');
@@ -504,6 +507,7 @@
 					case 'token_type':
 					case 'expires_in':
 					case 'state':
+					case 'session_state':
 						params[key] = values[key];
 					default:
 						break;
