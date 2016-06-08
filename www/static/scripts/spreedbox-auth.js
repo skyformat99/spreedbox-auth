@@ -913,18 +913,24 @@
 			};
 			// Add a validate function for session state validation.
 			var origin = location.protocol + '//' + location.host;
+			var forceValidate = false;
 			window.validate = function(cookieName, cb) {
 				if (cookieName) {
 					var browserState = getCookie(cookieName);
 					if (!browserState) {
-						browserState = 'provider_without_state';
+						// NOTE(longsleep): This should not trigger a server call as
+						// most likely the user has not yet logged in again. The next validate
+						// call with a browserState should force authorize.
+						forceValidate = true;
+						return;
 					}
 					var valid = validateCurrentSessionState(currentURL, origin, browserState);
-					if (!valid) {
+					if (!valid || forceValidate) {
 						// Refresh auth when session state validation failed.
 						window.setTimeout(function() {
 							handler.authorize(cb);
 						}, 0);
+						forceValidate = false;
 					}
 				}
 			};
