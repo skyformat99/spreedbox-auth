@@ -672,14 +672,16 @@
 					refresher.ready = true;
 					window.clearTimeout(refresher.timer);
 					var refreshSeconds = settings.null_auth_refresh_seconds;
+					if (auth) {
+						refreshSeconds = (auth.expires_in || 3600) / 100 * settings.early_refresh_percent;
+						if (refreshSeconds > 3600) {
+							refreshSeconds = 3600;
+						}
+						//console.info('refresh in ', refreshSeconds, ' seconds', auth.expires_in);
+					}
 					if (error === null) {
 						if (auth) {
 							setCurrentAuth(auth, true);
-							refreshSeconds = (auth.expires_in || 3600) / 100 * settings.early_refresh_percent;
-							if (refreshSeconds > 3600) {
-								refreshSeconds = 3600;
-							}
-							//console.info('refresh in ', refreshSeconds, ' seconds', auth.expires_in);
 							if (currentState !== auth.state) {
 								currentState = auth.state;
 								trigger(refresher, 'auth', auth, null);
@@ -924,6 +926,9 @@
 						if (!forceValidate) {
 							// First time without browserState, revocate our auth.
 							revocate();
+							window.setTimeout(function() {
+								handler.handleFunc(getCurrentAuth(), 'lost browser state', cb);
+							}, 0);
 						}
 						forceValidate = true;
 						return;
