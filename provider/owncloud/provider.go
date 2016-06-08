@@ -143,7 +143,7 @@ func (ap *authProvided) RedirectSuccess(url *url.URL, params interface{}, fragme
 	var headers http.Header
 
 	if ar.Options.WithSessionState {
-		// The ownCloud provides sets the ownCloud state as cookie so the
+		// The ownCloud provider sets the ownCloud state as cookie so the
 		// Javascript library can detect changes quickly.
 		browserState := ap.BrowserState()
 		ocState := ap.userConfig.State
