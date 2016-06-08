@@ -19,7 +19,6 @@ angular.module('ngSpreedboxAuth', [])
 			if (!currentRefresher) {
 				currentRefresher = $window.spreedboxAuth.app.refresher();
 				currentRefresher.onauth = function(auth, error) {
-					console.log('xxx refresher onauth', auth, error, provider.deferred);
 					var currentAuthBackup = currentAuth;
 					currentAuthError = error;
 					if (auth) {
