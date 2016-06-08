@@ -921,6 +921,10 @@
 						// NOTE(longsleep): This should not trigger a server call as
 						// most likely the user has not yet logged in again. The next validate
 						// call with a browserState should force authorize.
+						if (!forceValidate) {
+							// First time without browserState, revocate our auth.
+							revocate();
+						}
 						forceValidate = true;
 						return;
 					}
