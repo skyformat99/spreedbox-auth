@@ -27,7 +27,6 @@ angular.module('ngSpreedboxAuth', [])
 						}
 					} else {
 						if (error) {
-							console.warn('authorization failed', error);
 							$rootScope.$broadcast('auth-error', error, auth);
 						}
 					}
