@@ -46,7 +46,7 @@ Depends:
  ${shlibs:Depends},
  ${misc:Depends},
  libressl-apps | openssl,
- owncloud-spreedbox (>= 0.6.0),
+ owncloud-spreedbox (>= 0.0.6),
  spreedbox-owncloud (>= 0.2.0),
  spreedbox-service,
  spreedbox-webserver (>= 0.1.0)
