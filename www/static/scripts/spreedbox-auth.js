@@ -346,7 +346,7 @@
 		return JSON.parse(JSON.stringify(authorizeCurrent));
 	}
 
-	function setCurrentAuth(auth) {
+	function setCurrentAuth(auth, noTriggerCache) {
 		if (auth && !auth.hasOwnProperty('received_at')) {
 			auth.received_at = new Date().getTime();
 		}
@@ -355,11 +355,14 @@
 			authorizeCurrentID.id_token = auth.id_token;
 		}
 		authorizeCurrent = auth;
+		if (!noTriggerCache) {
+			triggerAuthChangedViaCache();
+		}
 	}
 
-	function clearCurrentAuth() {
+	function clearCurrentAuth(noTriggerCache) {
 		if (hasCurrentAuth) {
-			setCurrentAuth(null);
+			setCurrentAuth(null, noTriggerCache);
 			var length = authorizeClearedListeners.length;
 			for (var i = 0; i < length; i++) {
 				authorizeClearedListeners[i]();
@@ -376,9 +379,9 @@
 		authorizeClearedListeners.push(f);
 	}
 
-	function cacheCurrentAuth() {
+	function cacheCurrentAuth(noTriggerCache) {
 		if (!authorizeCurrent) {
-			sessionStorage.removeItem('spreedbox-auth-cached');
+			clearCurrentAuthFromCache(noTriggerCache);
 			return;
 		}
 		var data = {
@@ -388,7 +391,7 @@
 		sessionStorage.setItem('spreedbox-auth-cached', JSON.stringify(data));
 	}
 
-	function loadCurrentAuthFromCache() {
+	function loadCurrentAuthFromCache(noTriggerCache) {
 		var s = sessionStorage.getItem('spreedbox-auth-cached');
 		if (!s) {
 			return null;
@@ -401,13 +404,30 @@
 					auth.expires_in = (auth.received_at + auth.expires_in * 1000 - (new Date().getTime())) / 1000;
 					//console.log('compute new expires_in', auth.expires_in * 1000);
 					if (auth.expires_in > 10) {
-						setCurrentAuth(auth);
+						setCurrentAuth(auth, noTriggerCache);
 					}
 				}
 				break;
 		}
 		return getCurrentAuth();
 	}
+
+	function clearCurrentAuthFromCache() {
+		sessionStorage.removeItem('spreedbox-auth-cached');
+	}
+
+	function triggerAuthChangedViaCache() {
+		var key = 'spreedbox-auth-validate-mark';
+		var mark = '1';
+		var v = localStorage.getItem(key);
+		if (v) {
+			if (v === mark) {
+				localStorage.removeItem(key);
+			}
+		} else {
+			localStorage.setItem(key, mark);
+		}
+	};
 
 	function isAuthExpired(auth) {
 		var now = new Date().getTime();
@@ -420,7 +440,22 @@
 		return false;
 	}
 
-	function validateSessionState(clientID, origin, browserState) {
+	function getCurrentSessionState() {
+		var auth = getCurrentAuth();
+		if (!auth || !auth.session_state) {
+			return null;
+		}
+
+		var parts = auth.session_state.split('.');
+		return {
+			raw: auth.session_state,
+			hash: parts[0],
+			salt: parts[1],
+			ref: parts[2] ? parts[2] : ''
+		};
+	}
+
+	function validateCurrentSessionState(clientID, origin, browserState) {
 		// Validate session state - see http://openid.net/specs/openid-connect-session-1_0.html#OPiframe
 		// for details and base specification.
 
@@ -429,12 +464,12 @@
 			return false;
 		}
 
-		if (!auth.session_state) {
+		var currentSessionState = getCurrentSessionState();
+		if (!currentSessionState) {
 			// No session state in auth is a success (means no session).
 			return true;
 		}
 
-		var salt = auth.session_state.split('.')[1];
 		var shaObj = new JsSHA('SHA-256', 'TEXT');
 		shaObj.update(clientID);
 		shaObj.update(' ');
@@ -442,10 +477,12 @@
 		shaObj.update(' ');
 		shaObj.update(browserState);
 		shaObj.update(' ');
-		shaObj.update(salt);
-		var sessionState = shaObj.getHash('B64') + '.' + salt;
+		shaObj.update(currentSessionState.salt);
+		shaObj.update(' ');
+		shaObj.update(currentSessionState.ref);
+		var sessionStateString = shaObj.getHash('B64') + '.' + currentSessionState.salt + '.' + currentSessionState.ref;
 
-		return sessionState == auth.session_state;
+		return sessionStateString == currentSessionState.raw;
 	}
 
 	// Revocate app.
@@ -614,7 +651,7 @@
 
 			if (settings.cache && !hasCurrentAuth()) {
 				// Load from cache.
-				loadCurrentAuthFromCache();
+				loadCurrentAuthFromCache(true);
 			}
 
 			this.frame = document.createElement('iframe');
@@ -635,24 +672,27 @@
 					refresher.ready = true;
 					window.clearTimeout(refresher.timer);
 					var refreshSeconds = settings.null_auth_refresh_seconds;
+					if (auth) {
+						refreshSeconds = (auth.expires_in || 3600) / 100 * settings.early_refresh_percent;
+						if (refreshSeconds > 3600) {
+							refreshSeconds = 3600;
+						}
+						//console.info('refresh in ', refreshSeconds, ' seconds', auth.expires_in);
+					}
 					if (error === null) {
 						if (auth) {
-							setCurrentAuth(auth);
-							refreshSeconds = (auth.expires_in || 3600) / 100 * settings.early_refresh_percent;
-							if (refreshSeconds > 3600) {
-								refreshSeconds = 3600;
-							}
-							//console.info('refresh in ', refreshSeconds, ' seconds', auth.expires_in);
+							setCurrentAuth(auth, true);
 							if (currentState !== auth.state) {
 								currentState = auth.state;
 								trigger(refresher, 'auth', auth, null);
 							}
 						} else {
-							clearCurrentAuth();
+							clearCurrentAuth(true);
 							trigger(refresher, 'auth', null, null);
 						}
 					} else {
-						trigger(refresher, 'auth', getCurrentAuth(), error);
+						clearCurrentAuth(true);
+						trigger(refresher, 'auth', null, error);
 					}
 					// Schedule next run.
 					if (refreshSeconds > 0) {
@@ -662,7 +702,7 @@
 					}
 					// Cache support.
 					if (settings.cache) {
-						cacheCurrentAuth();
+						cacheCurrentAuth(true);
 					}
 					// Callback.
 					if (cb) {
@@ -768,19 +808,40 @@
 	}
 
 	// Logout app.
+	var logoutDefaultOptions = {
+		cache: true
+	};
 	function LogoutApp(opts) {
-		var options = mergeOptions(opts, {});
+		var options = mergeOptions(opts, logoutDefaultOptions);
 		options.onSuccess = function() {
-			clearCurrentAuth();
-			cacheCurrentAuth();
-			clearCurrentAuthID();
 			if (opts && opts.onSuccess) {
 				opts.onSuccess.apply(this, arguments);
 			}
 		};
 
 		function Logout(settings) {
+			if (settings.cache && !hasCurrentAuth()) {
+				// Load from cache.
+				loadCurrentAuthFromCache(true);
+			}
+
+			// Clear cookie.
+			var sessionState = getCurrentSessionState();
+			if (sessionState && sessionState.ref) {
+				console.log('remove cookie', sessionState.ref);
+				var cookiePath = baseAPIURL;
+				document.cookie = sessionState.ref + '=; Path=' + cookiePath + '; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+			}
+
+			// Revocate access token.
 			revocate(settings);
+
+			// Directly remove everything.
+			clearCurrentAuth();
+			if (options.cache) {
+				cacheCurrentAuth();
+			}
+			clearCurrentAuthID();
 		}
 
 		return new Logout(options);
@@ -800,7 +861,7 @@
 	spreedboxAuth.revocate.defaultOptions = revocateDefaultOptions;
 	spreedboxAuth.get = getCurrentAuth;
 	spreedboxAuth.session = {
-		validate: validateSessionState
+		validate: validateCurrentSessionState
 	};
 	spreedboxAuth.app = {
 		redirector: RedirectorApp,
@@ -820,18 +881,33 @@
 			window.run = function(currentAuth, handleFunc, options, cb) {
 				handler.setup(handleFunc, options);
 				if (currentAuth) {
+					// Use current auth when provided.
 					setCurrentAuth(currentAuth);
 					window.setTimeout(function() {
 						handleFunc(currentAuth, null, cb);
 					}, 0);
-					return;
+				} else {
+					// Try to authorize when without current auth.
+					handler.authorize(cb);
 				}
-				handler.authorize(cb);
 				if (options && options.browser_state_check_seconds) {
+					if (currentAuth) {
+						// Validate current auth directly if provided.
+						window.validate(options.browser_state_cookie_name, cb);
+					}
+					// Periodically validate as well.
 					window.setInterval(function() {
 						window.validate(options.browser_state_cookie_name, cb);
 					}, options.browser_state_check_seconds * 1000);
 				}
+				// Storage event support.
+				window.addEventListener('storage', function spreedboxAuthStorage(event) {
+					if (!event || event.key !== 'spreedbox-auth-validate-mark') {
+						return;
+					}
+					//console.log('auth storage event', event);
+					window.validate(options.browser_state_cookie_name, cb);
+				}, true);
 			};
 			// Bind global authorize function (is called by parent).
 			window.authorize = function(cb) {
@@ -839,17 +915,31 @@
 			};
 			// Add a validate function for session state validation.
 			var origin = location.protocol + '//' + location.host;
+			var forceValidate = false;
 			window.validate = function(cookieName, cb) {
-				if (cookieName && hasCurrentAuth()) {
+				if (cookieName) {
 					var browserState = getCookie(cookieName);
 					if (!browserState) {
-						browserState = 'provider_without_state';
+						// NOTE(longsleep): This should not trigger a server call as
+						// most likely the user has not yet logged in again. The next validate
+						// call with a browserState should force authorize.
+						if (!forceValidate) {
+							// First time without browserState, revocate our auth.
+							revocate();
+							window.setTimeout(function() {
+								handler.handleFunc(getCurrentAuth(), 'lost browser state', cb);
+							}, 0);
+						}
+						forceValidate = true;
+						return;
 					}
-					var valid = validateSessionState(currentURL, origin, browserState);
-					if (!valid) {
+					var valid = validateCurrentSessionState(currentURL, origin, browserState);
+					if (!valid || forceValidate) {
+						// Refresh auth when session state validation failed.
 						window.setTimeout(function() {
 							handler.authorize(cb);
 						}, 0);
+						forceValidate = false;
 					}
 				}
 			};
@@ -858,6 +948,7 @@
 	RedirectorApp.defaultOptions = redirectorDefaultOptions;
 	RefresherApp.defaultOptions = refresherDefaultOptions;
 	HandlerApp.defaultOptions = handlerDefaultOptions;
+	LogoutApp.defaultOptions = logoutDefaultOptions;
 
 	// Auto run support.
 	(function() {

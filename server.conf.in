@@ -39,9 +39,9 @@ tokenPrivateKey = ./server.key
 ## provider is currently 'owncloud'.
 # provider = owncloud
 ## When using the ownCloud provider, this defines the URL to the
-## Spreed.ME app inside ownCloud and is required to use the owncloud
+## Spreedbox app inside ownCloud and is required to use the owncloud
 ## authorization provider.
-# owncloudURL = https://127.0.0.1/index.php/apps/spreedme
+# owncloudURL = http://127.0.0.1:9673/index.php/apps/spreedbox
 ## When using the ownCloud provider, it can prompt for login by
 ## redirecting to the login form. Defaults to '/'.
 # owncloudLoginFormURL = /
