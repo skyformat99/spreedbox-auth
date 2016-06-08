@@ -7,27 +7,33 @@ angular.module('ngSpreedboxAuth', [])
 		var currentAuthError = null;
 		var currentRefresher = null;
 
+		var provider = this;
 		// Provider function, can be used in routes as resolvable.
 		this.authRequired = ['$q', '$location', '$window', '$rootScope', function($q, $location, $window, $rootScope) {
-			if (currentAuth) {
+			if (currentAuth && currentRefresher) {
+				currentRefresher.start();
 				return currentAuth;
 			}
 
-			var deferred = $q.defer();
+			provider.deferred = $q.defer();
 			if (!currentRefresher) {
 				currentRefresher = $window.spreedboxAuth.app.refresher();
 				currentRefresher.onauth = function(auth, error) {
+					console.log('xxx refresher onauth', auth, error, provider.deferred);
 					var currentAuthBackup = currentAuth;
 					currentAuthError = error;
 					if (auth) {
 						currentAuth = auth;
-						if (deferred !== null) {
-							deferred.resolve(auth);
-							deferred = null;
+						if (provider.deferred !== null) {
+							provider.deferred.resolve(auth);
+							provider.deferred = null;
 						}
 					} else {
 						if (error) {
 							$rootScope.$broadcast('auth-error', error, auth);
+						} else {
+							// No auth and no error, must be a clear / logout.
+							currentAuth = null;
 						}
 					}
 					if (currentAuth !== currentAuthBackup || first || error) {
@@ -35,9 +41,14 @@ angular.module('ngSpreedboxAuth', [])
 					}
 					first = false;
 				};
+
+				// Expose a refresher reference, for whatever API voodoo.
+				provider.refresher = this;
+			} else {
+				currentRefresher.start(true);
 			}
 
-			return deferred.promise;
+			return provider.deferred.promise;
 		}];
 
 		// Factory.
@@ -61,8 +72,20 @@ angular.module('ngSpreedboxAuth', [])
 				return false;
 			};
 
+			SpreedboxAuth.prototype.clear = function() {
+				if (currentRefresher) {
+					currentRefresher.clear();
+				}
+				first = true;
+			};
+
+			SpreedboxAuth.prototype.logout = function(options) {
+				first = true;
+				$window.spreedboxAuth.app.logout(options);
+			};
+
 			SpreedboxAuth.prototype.authorize = function(options) {
-				return $window.spreedboxAuth.authorize(options);
+				$window.spreedboxAuth.authorize(options);
 			};
 
 			SpreedboxAuth.prototype.addAccessTokenAuthorizeHeader = function(headers) {

@@ -645,7 +645,9 @@
 		}
 
 		function Refresher(settings) {
+			this.settings = settings;
 			this.ready = false;
+			this.started = false;
 			this.timer = null;
 			var refresher = this;
 
@@ -723,12 +725,31 @@
 					currentState = currentAuth.state;
 				}
 				trigger(refresher, 'auth', currentAuth, null);
-				refresher.frame.setAttribute('src', settings.refresher_url);
+				refresher.start();
 			}, 0);
 		}
 
-		Refresher.prototype.clear = function() {
+		Refresher.prototype.start = function(restart) {
+			if (this.started) {
+				if (!restart) {
+					return;
+				}
+				this.stop();
+			}
+			this.started = true;
+			this.frame.setAttribute('src', this.settings.refresher_url);
+		};
+
+		Refresher.prototype.stop = function(force) {
+			if (!this.started && !force) {
+				return;
+			}
 			window.clearTimeout(this.timer);
+			this.started = false;
+		};
+
+		Refresher.prototype.clear = function() {
+			this.stop();
 			if (hasCurrentAuth()) {
 				clearCurrentAuth();
 			}
