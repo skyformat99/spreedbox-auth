@@ -1,3 +1,13 @@
+spreedbox-auth (0.4.0) trusty; urgency=medium
+
+  * Use ownCloud spreedbox API state to compute the session state.
+  * Avoid surious authorize calls in other tabs when logged out.
+  * Revocate access token in refresher when without browser state.
+  * Fix typo.
+  * Properly refresh and trigger when browser state was lost (eg. on logout).
+
+ -- Simon Eisenmann <simon@struktur.de>  Wed, 08 Jun 2016 15:42:16 +0200
+
 spreedbox-auth (0.3.2) trusty; urgency=medium
 
   * Implement session_state according to http://openid.net/specs/openid-connect-session-1_0.html
