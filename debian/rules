@@ -17,7 +17,7 @@ override_dh_install:
 	dh_install
 	install -m644 -D $(CURDIR)/server.conf.in $(CURDIR)/debian/spreedbox-authd/etc/spreedbox/baddschd.conf
 	sed -i 's|^# provider =\(.*\)|provider = owncloud|;' $(CURDIR)/debian/spreedbox-authd/etc/spreedbox/baddschd.conf
-	sed -i 's|^# owncloudURL =\(.*\)|owncloudURL = https://127.0.0.1/index.php/apps/spreedme|;' $(CURDIR)/debian/spreedbox-authd/etc/spreedbox/baddschd.conf
+	sed -i 's|^# owncloudURL =\(.*\)|owncloudURL = http://127.0.0.1:9673/index.php/apps/spreedbox|;' $(CURDIR)/debian/spreedbox-authd/etc/spreedbox/baddschd.conf
 	sed -i 's|^# owncloudSkipSSLValidation =\(.*\)|owncloudSkipSSLValidation = true|;' $(CURDIR)/debian/spreedbox-authd/etc/spreedbox/baddschd.conf
 	sed -i 's|^tokenPrivateKey =\(.*\)|tokenPrivateKey = /etc/spreedbox/auth/keys/privkey.pem|;' $(CURDIR)/debian/spreedbox-authd/etc/spreedbox/baddschd.conf
 	install -m644 -D $(CURDIR)/debian/upstream.conf $(CURDIR)/debian/spreedbox-authd/etc/nginx/conf.d/spreedbox-authd.conf

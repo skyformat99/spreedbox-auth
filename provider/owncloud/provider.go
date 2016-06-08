@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/google/go-querystring/query"
 	"golang.struktur.de/spreedbox/spreedbox-auth/auth/owncloud"
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch"
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch/httpauth"
@@ -35,8 +34,9 @@ func NewProvider(url string, config *ProviderConfig) (baddsch.AuthProvider, erro
 				"Debug Admin",
 				true,
 				true,
+				"some-state",
 			}
-			return newAuthProvided(config, testResponse, ""), nil
+			return newAuthProvided(config, testResponse, cookies), nil
 		}
 
 		switch err {
@@ -46,7 +46,7 @@ func NewProvider(url string, config *ProviderConfig) (baddsch.AuthProvider, erro
 			fallthrough
 		case httpauth.ErrStatusUnauthorized:
 			// Owncloud returns auth errors as 401.
-			return newAuthProvided(config, nil, ""), nil
+			return newAuthProvided(config, nil, cookies), nil
 		default:
 			return nil, err
 		}
@@ -57,18 +57,7 @@ func NewProvider(url string, config *ProviderConfig) (baddsch.AuthProvider, erro
 			return nil, err
 		}
 
-		var browserState string
-		if cookies != nil && config.browserStateCookieName != "" {
-			// Add browser state from cookie.
-			for _, cookie := range cookies {
-				if cookie.Name == config.browserStateCookieName {
-					browserState = cookie.Value
-					break
-				}
-			}
-		}
-
-		return newAuthProvided(config, &response, browserState), nil
+		return newAuthProvided(config, &response, cookies), nil
 	}, config)
 }
 
@@ -78,18 +67,31 @@ type spreedmePluginUserConfig struct {
 	DisplayName     string `json:"display_name"`
 	IsAdmin         bool   `json:"is_admin"`
 	IsSpreedmeAdmin bool   `json:"is_spreedme_admin"`
+	State           string `json:"state"`
 }
 
 type authProvided struct {
 	providerConfig *ProviderConfig
 	userConfig     *spreedmePluginUserConfig
-	browserState   string
+	browserState   *baddsch.BrowserState
 }
 
-func newAuthProvided(providerConfig *ProviderConfig, userConfig *spreedmePluginUserConfig, browserState string) *authProvided {
+func newAuthProvided(providerConfig *ProviderConfig, userConfig *spreedmePluginUserConfig, cookies []*http.Cookie) *authProvided {
 	if userConfig == nil {
 		userConfig = &spreedmePluginUserConfig{}
 	}
+
+	var browserState *baddsch.BrowserState
+	if cookies != nil && providerConfig.browserStateCookieName != "" {
+		// Add browser state from cookie.
+		for _, cookie := range cookies {
+			if cookie.Name == providerConfig.browserStateCookieName {
+				browserState = baddsch.NewBrowserState(cookie.Value, cookie.Name)
+				break
+			}
+		}
+	}
+
 	return &authProvided{providerConfig, userConfig, browserState}
 }
 
@@ -129,26 +131,58 @@ func (ap *authProvided) RedirectError(err error, ar *baddsch.AuthenticationReque
 	relativeRedirectURL, _ := url.Parse(ar.Options.RedirectURL.String())
 	relativeRedirectURL.Scheme = ""
 	relativeRedirectURL.Host = ""
-	v, _ := query.Values(&LoginRedirectRequest{
+	query := &LoginRedirectRequest{
 		RedirectURL: relativeRedirectURL.String(),
-	})
-	url.RawQuery = v.Encode()
+	}
 	url.Fragment = "authprovided=1"
 
-	return http.StatusFound, "", http.Header{
-		"Location":      {url.String()},
-		"Cache-Control": {"no-store"},
-		"Pragma":        {"no-cache"},
-	}
+	return ar.Redirect(url, query, false, nil)
 }
 
-func (ap *authProvided) BrowserState() (string, bool) {
-	result := false
-	if ap.browserState != "" {
-		result = true
+func (ap *authProvided) RedirectSuccess(url *url.URL, params interface{}, fragment bool, ar *baddsch.AuthenticationRequest) (int, interface{}, http.Header) {
+	var headers http.Header
+
+	if ar.Options.WithSessionState {
+		// The ownCloud provides sets the ownCloud state as cookie so the
+		// Javascript library can detect changes quickly.
+		browserState := ap.BrowserState()
+		ocState := ap.userConfig.State
+
+		var cookie *http.Cookie
+		if ap.providerConfig.browserStateCookieName != "" {
+			if ocState == "" && browserState != nil {
+				// Expire cookie.
+				cookie = &http.Cookie{
+					Name:   ap.providerConfig.browserStateCookieName,
+					MaxAge: -1,
+					Secure: true,
+				}
+			} else if ocState != "" && (browserState == nil || ocState != browserState.Value()) {
+				// Set new cookie.
+				cookie = &http.Cookie{
+					Name:   ap.providerConfig.browserStateCookieName,
+					Value:  ocState,
+					Secure: true,
+				}
+			}
+		}
+
+		// Set cookie for browser state in Javascript.
+		if cookie != nil {
+			headers = http.Header{}
+			headers.Add("Set-Cookie", cookie.String())
+		}
 	}
 
-	return ap.browserState, result
+	return ar.Redirect(url, params, fragment, headers)
+}
+
+func (ap *authProvided) BrowserState() *baddsch.BrowserState {
+	if ap.browserState != nil {
+		return ap.browserState
+	}
+
+	return baddsch.NewBrowserState("provider_without_state", ap.providerConfig.browserStateCookieName)
 }
 
 type ProviderConfig struct {

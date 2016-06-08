@@ -369,10 +369,10 @@ done:
 			State:            ar.State,
 		}
 		if ar.Options.WithSessionState {
-			errResponse.SessionState = ar.SessionState(err.Error())
+			errResponse.SessionState = ar.SessionState(NewBrowserState(err.Error(), ""))
 		}
 		log.Println("authorize failed http", err, errDescription)
-		return ar.Redirect(ar.Options.RedirectURL, errResponse, ar.Options.UseFragment)
+		return ar.Redirect(ar.Options.RedirectURL, errResponse, ar.Options.UseFragment, nil)
 	}
 
 	successResponse := &AuthenticationSuccessResponse{
@@ -380,14 +380,14 @@ done:
 	}
 
 	if ar.Options.WithSessionState {
-		var browserState string
+		var browserState *BrowserState
 		if authProvided != nil {
-			if providedBrowserState, ok := authProvided.BrowserState(); ok {
-				browserState = providedBrowserState
-			} else {
-				browserState = "provider_without_state"
-			}
+			browserState = authProvided.BrowserState()
 		}
+		if browserState == nil {
+			browserState = NewBrowserState("provider_without_state", "")
+		}
+
 		successResponse.SessionState = ar.SessionState(browserState)
 	}
 
@@ -404,10 +404,14 @@ done:
 	}
 
 	log.Println("authorize success http")
-	return ar.Redirect(ar.Options.RedirectURL, successResponse, ar.Options.UseFragment)
+	if authProvided != nil {
+		return authProvided.RedirectSuccess(ar.Options.RedirectURL, successResponse, ar.Options.UseFragment, ar)
+	}
+
+	return ar.Redirect(ar.Options.RedirectURL, successResponse, ar.Options.UseFragment, nil)
 }
 
-func (ar *AuthenticationRequest) Redirect(url *url.URL, params interface{}, fragment bool) (int, interface{}, http.Header) {
+func (ar *AuthenticationRequest) Redirect(url *url.URL, params interface{}, fragment bool, headers http.Header) (int, interface{}, http.Header) {
 	var urlString string
 	v, _ := query.Values(params)
 	if fragment {
@@ -417,32 +421,37 @@ func (ar *AuthenticationRequest) Redirect(url *url.URL, params interface{}, frag
 		urlString = url.String()
 	}
 
-	return http.StatusFound, "", http.Header{
-		"Location":      {urlString},
-		"Cache-Control": {"no-store"},
-		"Pragma":        {"no-cache"},
+	if headers == nil {
+		headers = http.Header{}
 	}
+	headers.Set("Location", urlString)
+	headers.Set("Cache-Control", "no-store")
+	headers.Set("Pragma", "no-cache")
+
+	return http.StatusFound, "", headers
 }
 
-func (ar *AuthenticationRequest) SessionState(browserState string) string {
+func (ar *AuthenticationRequest) SessionState(browserState *BrowserState) string {
 	origin := ar.Request.Header.Get("Origin")
 	if origin == "" {
 		origin = fmt.Sprintf("https://%s", ar.Request.Host)
 	}
 
 	// Create sessionState.
-	// sha256(clientID + " " + origin + " " + browserState + " " + salt) + "." + salt
+	// sha256(clientID + " " + origin + " " + browserState + " " + salt + " " + ref) + "." + salt + "." + ref
 	hasher := sha256.New()
 	hasher.Write([]byte(ar.clientID))
 	hasher.Write([]byte(" "))
 	hasher.Write([]byte(origin))
 	hasher.Write([]byte(" "))
-	hasher.Write([]byte(browserState))
+	hasher.Write([]byte(browserState.Value()))
 	hasher.Write([]byte(" "))
 	salt := randomstring.NewRandomString(8)
 	hasher.Write([]byte(salt))
+	hasher.Write([]byte(" "))
+	hasher.Write([]byte(browserState.Ref()))
 
-	return fmt.Sprintf("%s.%s", base64.StdEncoding.EncodeToString(hasher.Sum(nil)), salt)
+	return fmt.Sprintf("%s.%s.%s", base64.StdEncoding.EncodeToString(hasher.Sum(nil)), salt, browserState.Ref())
 }
 
 type AuthenticationSuccessResponse struct {
