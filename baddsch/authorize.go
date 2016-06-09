@@ -334,7 +334,7 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 			Sub:           ar.userID,
 			Aud:           ar.clientID,
 			Nonce:         ar.Nonce,
-			PrivateClaims: authProvided.PrivateClaims(),
+			PrivateClaims: make(map[string]interface{}),
 		}
 		if accessToken != nil {
 			// Add at_hash claim as defined in
