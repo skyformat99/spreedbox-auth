@@ -71,17 +71,18 @@ type AuthenticationRequestOptions struct {
 }
 
 type AuthenticationRequest struct {
-	Request      *http.Request                 `schema:"-"`
-	Options      *AuthenticationRequestOptions `schema:"-"`
-	ResponseType string                        `schema:"response_type"`
-	RedirectURL  string                        `schema:"redirect_url"`
-	Nonce        string                        `schema:"nonce"`
-	State        string                        `schema:"state"`
-	Scope        string                        `schema:"scope"`
-	Prompt       string                        `schema:"prompt"`
-	IDTokenHint  string                        `schema:"id_token_hint"`
-	userID       string                        `schema:"-"`
-	clientID     string                        `schema:"-"`
+	Request       *http.Request                 `schema:"-"`
+	Options       *AuthenticationRequestOptions `schema:"-"`
+	ResponseType  string                        `schema:"response_type"`
+	RedirectURL   string                        `schema:"redirect_url"`
+	Nonce         string                        `schema:"nonce"`
+	State         string                        `schema:"state"`
+	Scope         string                        `schema:"scope"`
+	Prompt        string                        `schema:"prompt"`
+	RequestObject string                        `schema:"request"`
+	IDTokenHint   string                        `schema:"id_token_hint"`
+	userID        string                        `schema:"-"`
+	clientID      string                        `schema:"-"`
 }
 
 func NewAuthenticationRequest(r *http.Request) (*AuthenticationRequest, error) {
@@ -107,9 +108,6 @@ func NewAuthenticationRequest(r *http.Request) (*AuthenticationRequest, error) {
 }
 
 func (ar *AuthenticationRequest) Validate(doc *AuthorizeDocument) (error, string) {
-	if _, ok := ar.Options.Scopes["openid"]; !ok {
-		return errors.New("invalid_scope"), "must have openid scope"
-	}
 	switch ar.ResponseType {
 	case "id_token":
 		fallthrough
@@ -123,6 +121,14 @@ func (ar *AuthenticationRequest) Validate(doc *AuthorizeDocument) (error, string
 		ar.Options.UseFragment = true
 	default:
 		return errors.New("unsupported_response_type"), ""
+	}
+
+	if ar.RequestObject != "" {
+		return errors.New("request_not_supported"), "request object is not supported"
+	}
+
+	if _, ok := ar.Options.Scopes["openid"]; !ok {
+		return errors.New("invalid_scope"), "must have openid scope"
 	}
 
 	for {
