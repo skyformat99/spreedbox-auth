@@ -80,9 +80,10 @@ type AuthenticationRequest struct {
 	Scope         string                        `schema:"scope"`
 	Prompt        string                        `schema:"prompt"`
 	RequestObject string                        `schema:"request"`
-	IDTokenHint   string                        `schema:"id_token_hint"`
-	userID        string                        `schema:"-"`
-	clientID      string                        `schema:"-"`
+	//Claims        string                        `schema:"claims"` // No support for now. Lets see if we can get away with scopes.
+	IDTokenHint string `schema:"id_token_hint"`
+	userID      string `schema:"-"`
+	clientID    string `schema:"-"`
 }
 
 func NewAuthenticationRequest(r *http.Request) (*AuthenticationRequest, error) {
