@@ -54,7 +54,6 @@ func (api *APIv1) AddResources(holder APIResourceHolder, authProvider AuthProvid
 		"response_types_supported":                    []string{"id_token", "token id_token", "token"},
 		"id_token_signing_alg_values_supported":       []string{tokenAlg},
 		"request_object_signing_alg_values_supported": []string{tokenAlg},
-		"subject_types_supported":                     []string{"pairwise"},
 		"spreedbox-setup_endpoint":                    "https://{{.Host}}/spreedbox-setup", // TODO(longsleep): Add a registry for services.
 		"spreedbox-auth_endpoint":                     "https://{{.Host}}/spreedbox-auth",
 	}}
