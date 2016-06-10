@@ -34,6 +34,13 @@
 		return '/spreedbox-auth/api/v1/static/scripts';
 	})();
 	var baseAPIURL = baseScriptURL.split('/static/', 2)[0];
+	var requiredIssuer = (function() {
+		if (currentScript) {
+			return currentScript.dataset.requiredIssuer; // data-required-issuer attribute.
+		}
+
+		return null;
+	})();
 
 	function encodeParams(params) {
 		var result = [];
@@ -131,7 +138,7 @@
 		var data = base64URLDecodeJSON(parts[1]);
 
 		// Validate.
-		if (data.iss !== 'https://self-issued.me') {
+		if (requiredIssuer && data.iss !== requiredIssuer) {
 			throw 'iss validation failed';
 		}
 		if (data.aud !== currentURL) {
@@ -290,7 +297,8 @@
 			if (err) {
 				clearCurrentAuth();
 				if (options.onError) {
-					options.onError({error: err});
+					params.error = err
+					options.onError(params);
 					return;
 				}
 				throw 'spreedbox-auth error: ' + err;
@@ -632,7 +640,8 @@
 		null_auth_refresh_seconds: 60,
 		early_refresh_percent: 70,
 		browser_state_cookie_name: 'oc_spreedbox',
-		browser_state_check_seconds: 120
+		browser_state_check_seconds: 120,
+		requiredIssuer: requiredIssuer
 	};
 	function RefresherApp(opts) {
 		var options = mergeOptions(opts, refresherDefaultOptions);
@@ -806,6 +815,10 @@
 
 			var options = mergeOptions(opts, this.settings);
 			this.options = options;
+			if (options.hasOwnProperty('requiredIssuer')) {
+				// Set global required issuer.
+				requiredIssuer = options.requiredIssuer;
+			}
 		};
 
 		Handler.prototype.authorize = function(cb) {
