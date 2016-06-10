@@ -34,7 +34,6 @@ type AuthorizeDocument struct {
 
 // Get is the HTTP response handler for requests to the authorization endpoint.
 func (doc *AuthorizeDocument) Get(r *http.Request) (int, interface{}, http.Header) {
-	log.Println("authorize http")
 	// http://openid.net/specs/openid-connect-core-1_0.html
 	// Implemented flow:
 	// Authentication Request
@@ -189,7 +188,7 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvi
 		} else {
 			return nil, errors.New("invalid_request"), err.Error()
 		}
-		log.Printf("basic authentication request for: %s\n", requestedUserID)
+		//log.Printf("basic authentication request for: %s\n", requestedUserID)
 		if doc.AuthProvider != nil {
 			authProvided, err = doc.AuthProvider.Authorization(ar.Options.Authorization, nil)
 		}
@@ -200,7 +199,7 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvi
 		}
 		fallthrough
 	case "":
-		log.Printf("cookie authentication request\n")
+		//log.Printf("cookie authentication request\n")
 		ar.Options.WithSessionState = true // Enable session state for cookie based auth.
 		cookies := ar.Request.Cookies()
 		if doc.AuthProvider != nil {
@@ -378,7 +377,7 @@ done:
 		if ar.Options.WithSessionState {
 			errResponse.SessionState = ar.SessionState(NewBrowserState(err.Error(), ""))
 		}
-		log.Println("authorize failed http", err, errDescription)
+		//log.Println("authorize failed http", err, errDescription)
 		return ar.Redirect(ar.Options.RedirectURL, errResponse, ar.Options.UseFragment, nil)
 	}
 
@@ -410,7 +409,7 @@ done:
 		successResponse.IDToken = idToken.Raw
 	}
 
-	log.Println("authorize success http")
+	//log.Println("authorize success http")
 	if authProvided != nil {
 		return authProvided.RedirectSuccess(ar.Options.RedirectURL, successResponse, ar.Options.UseFragment, ar)
 	}

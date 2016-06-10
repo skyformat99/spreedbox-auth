@@ -4,7 +4,6 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -24,7 +23,6 @@ type ValidateDocument struct {
 }
 
 func (doc *ValidateDocument) Get(r *http.Request) (int, interface{}, http.Header) {
-	log.Println("validation http")
 	vr, err := NewValidationRequest(r)
 	if err != nil {
 		return http.StatusBadRequest, err.Error(), nil
@@ -116,11 +114,11 @@ func (vr *ValidationRequest) Response(doc *ValidateDocument) (int, interface{}, 
 		"Pragma":        {"no-cache"},
 	}
 	if err, errDescription := vr.Validate(doc); err != nil {
-		log.Println("validation failed http", err, errDescription)
+		//log.Println("validation failed http", err, errDescription)
 		headers.Add("WWW-Authenticate", fmt.Sprintf("error=%s, error_description=%s", strconv.QuoteToASCII(err.Error()), strconv.QuoteToASCII(errDescription)))
 		return http.StatusUnauthorized, err.Error(), headers
 	}
 
-	log.Println("validation success http")
+	//log.Println("validation success http")
 	return http.StatusOK, "ok", headers
 }

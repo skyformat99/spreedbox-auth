@@ -77,8 +77,6 @@ func (s *Server) Serve(runtime phoenix.Runtime) (err error) {
 }
 
 func (s *Server) validate(subject, reply string, msg *auth.ValidateRequest) {
-	log.Println("validate", subject, reply)
-
 	if reply == "" {
 		// Do nothing when no reply subject was given.
 		return
@@ -100,10 +98,10 @@ func (s *Server) doValidate(subject, reply string, msg *auth.ValidateRequest) {
 	err, errDescription := request.Validate(s.api.ValidateDocument)
 	replyData := &auth.ValidateReply{}
 	if err == nil {
-		log.Println("validate success", subject, reply)
+		//log.Println("validate success", subject, reply)
 		replyData.Success = true
 	} else {
-		log.Println("validate failed", subject, reply, err, errDescription)
+		//log.Println("validate failed", subject, reply, err, errDescription)
 		replyData.Error = err.Error()
 		replyData.Message = errDescription
 	}

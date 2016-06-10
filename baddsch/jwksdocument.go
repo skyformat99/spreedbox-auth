@@ -2,7 +2,6 @@ package baddsch
 
 import (
 	"crypto"
-	"log"
 	"net/http"
 
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch/jwk"
@@ -26,8 +25,6 @@ func NewJWKSDocument(tokenPublicKey crypto.PublicKey) *JWKSDocument {
 }
 
 func (doc *JWKSDocument) Get(r *http.Request) (int, interface{}, http.Header) {
-	log.Println("jwks http")
-
 	data, _ := jwk.Marshal(doc.keys)
 	return 200, data, http.Header{"Content-Type": {"application/jwk-set+json"}}
 }
