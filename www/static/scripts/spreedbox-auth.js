@@ -297,7 +297,7 @@
 			if (err) {
 				clearCurrentAuth();
 				if (options.onError) {
-					params.error = err
+					params.error = err;
 					options.onError(params);
 					return;
 				}
