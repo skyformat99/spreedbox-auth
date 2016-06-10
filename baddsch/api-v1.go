@@ -15,6 +15,7 @@ type APIv1 struct {
 	AuthorizeDocument                    *AuthorizeDocument
 	ValidateDocument                     *ValidateDocument
 	RevocateDocument                     *RevocateDocument
+	JWKSDocument                         *JWKSDocument
 }
 
 // NewAPIv1 creates a APIv1 instance return it as API interface
@@ -44,19 +45,26 @@ func (api *APIv1) AddResources(holder APIResourceHolder, authProvider AuthProvid
 	tokenIssueIdentifier := api.Config.GetStringDefault("auth", "tokenIssueIdentifier", "https://spreedbox.local")
 	tokenAccessTokenClaim := api.Config.GetStringDefault("auth", "tokenAccessTokenClaim", "baddsch/at")
 
+	// Based on OpenID provider metadata as specified in
+	// http://openid.net/specs/openid-connect-discovery-1_0-21.html
 	api.WellKnownSpreedConfigurationDocument = &JSONDocument{map[string]interface{}{
 		"issuer":                                tokenIssueIdentifier,
 		"owncloud_endpoint":                     "https://{{.Host}}/index.php",
 		"owncloud-spreedme_endpoint":            "https://{{.Host}}/index.php/apps/spreedme",
 		"spreed-webrtc_endpoint":                "https://{{.Host}}/webrtc",
 		"authorization_endpoint":                "https://{{.Host}}/spreedbox-auth/api/v1/authorize",
+		"jwks_uri":                              "https://{{.Host}}/spreedbox-auth/api/v1/jwks.json",
 		"revocation_endpoint":                   "https://{{.Host}}/spreedbox-auth/api/v1/revocate",
-		"scopes_supported":                      []string{"openid"},
+		"scopes_supported":                      []string{"openid", "spreedbox"},
 		"response_types_supported":              []string{"id_token", "token id_token", "token"},
+		"grant_types_supported":                 []string{"implicit"},
 		"id_token_signing_alg_values_supported": []string{tokenAlg},
+		"subject_types_supported":               []string{"public"},
 		"spreedbox-setup_endpoint":              "https://{{.Host}}/spreedbox-setup", // TODO(longsleep): Add a registry for services.
 		"spreedbox-auth_endpoint":               "https://{{.Host}}/spreedbox-auth",
 	}}
+	//TODO(longsleep): Add endpoints for session management
+	// according to http://openid.net/specs/openid-connect-session-1_0.html
 
 	blacklist := lockmap.New()
 
@@ -83,9 +91,13 @@ func (api *APIv1) AddResources(holder APIResourceHolder, authProvider AuthProvid
 		ValidateDocument: api.ValidateDocument,
 	}
 
+	api.JWKSDocument = NewJWKSDocument(tokenPrivateKey.Public())
+
 	// Bind documents to resource endpoints.
 	holder.AddResource(api.WellKnownSpreedConfigurationDocument,
 		"/well-known/spreed-configuration")
+	holder.AddResource(api.JWKSDocument,
+		"/jwks.json")
 	holder.AddResource(api.AuthorizeDocument,
 		"/authorize")
 	holder.AddResource(api.ValidateDocument,
