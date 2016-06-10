@@ -11,7 +11,6 @@ type RevocateDocument struct {
 }
 
 func (doc *RevocateDocument) Post(r *http.Request) (int, interface{}, http.Header) {
-	log.Println("recovation http")
 	rr, err := NewRevocationRequest(r)
 	if err != nil {
 		return http.StatusBadRequest, err.Error(), nil
@@ -66,7 +65,7 @@ func (rr *RevocationRequest) Revocate(doc *RevocateDocument) (error, string) {
 	// Add token to blacklist.
 	doc.ValidateDocument.Blacklist.SetIfAbsent(rr.Token, true)
 
-	log.Println("revocate success http")
+	//log.Println("revocate success http")
 	return nil, ""
 }
 
