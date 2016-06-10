@@ -5,7 +5,6 @@ import (
 )
 
 const (
-	DisplayNameClaimID     = "oc/display_name"
 	IsAdminClaimID         = "oc/is_admin"
 	IsSpreedmeAdminClaimID = "oc/is_spreedme_admin"
 )

@@ -17,7 +17,7 @@ type AuthProviderConfig interface {
 type AuthProvided interface {
 	Status() bool
 	UserID() string
-	PrivateClaims() map[string]interface{}
+	PrivateClaims(bool, *AuthenticationRequest) map[string]interface{}
 	Authorize() bool
 	RedirectError(error, *AuthenticationRequest) (int, interface{}, http.Header)
 	RedirectSuccess(*url.URL, interface{}, bool, *AuthenticationRequest) (int, interface{}, http.Header)
@@ -34,8 +34,8 @@ func (nap *NoAuthProvided) UserID() string {
 	return ""
 }
 
-func (nap *NoAuthProvided) PrivateClaims() map[string]interface{} {
-	return nil
+func (nap *NoAuthProvided) PrivateClaims(idToken bool, ar *AuthenticationRequest) map[string]interface{} {
+	return make(map[string]interface{})
 }
 
 func (nap *NoAuthProvided) Authorize() bool {

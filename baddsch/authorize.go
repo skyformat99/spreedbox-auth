@@ -317,7 +317,7 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 			Sub:           ar.userID,
 			Aud:           ar.clientID,
 			Nonce:         ar.Nonce,
-			PrivateClaims: authProvided.PrivateClaims(),
+			PrivateClaims: authProvided.PrivateClaims(false, ar),
 		}
 		if doc.TokenAccessTokenClaim != "" {
 			accessTokenClaims.PrivateClaims[doc.TokenAccessTokenClaim] = true
@@ -334,7 +334,7 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 			Sub:           ar.userID,
 			Aud:           ar.clientID,
 			Nonce:         ar.Nonce,
-			PrivateClaims: make(map[string]interface{}),
+			PrivateClaims: authProvided.PrivateClaims(true, ar),
 		}
 		if accessToken != nil {
 			// Add at_hash claim as defined in

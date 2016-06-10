@@ -25,6 +25,10 @@ func (v *Validator) RequireIsAdminClaim() *Validator {
 	return v.RequireClaim(IsAdminClaim)
 }
 
+func (v *Validator) RequireIsUserClaim() *Validator {
+	return v.RequireClaim(IsUserClaim)
+}
+
 func (v *Validator) RequireAccessToken() *Validator {
 	v.tokenType = AccessTokenType
 	return v

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"golang.struktur.de/spreedbox/spreedbox-auth/auth"
 	"golang.struktur.de/spreedbox/spreedbox-auth/auth/owncloud"
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch"
 	"golang.struktur.de/spreedbox/spreedbox-auth/baddsch/httpauth"
@@ -103,12 +104,32 @@ func (ap *authProvided) UserID() string {
 	return ap.userConfig.ID
 }
 
-func (ap *authProvided) PrivateClaims() map[string]interface{} {
-	claims := map[string]interface{}{
-		owncloud.DisplayNameClaimID:     ap.userConfig.DisplayName,
-		owncloud.IsAdminClaimID:         ap.userConfig.IsAdmin,
-		owncloud.IsSpreedmeAdminClaimID: ap.userConfig.IsSpreedmeAdmin,
+func (ap *authProvided) PrivateClaims(idToken bool, ar *baddsch.AuthenticationRequest) map[string]interface{} {
+	claims := make(map[string]interface{})
+
+	// ID token only claims.
+	if idToken {
+		if profile, _ := ar.Options.Scopes["profile"]; profile {
+			// Support a subset of the profile scope, when asked for.
+			claims["name"] = ap.userConfig.DisplayName
+		}
+
+		return claims
 	}
+
+	// access tokens claims.
+
+	// Spreedbox scope support. Also used when "token" request for
+	// legacy reasons.
+	if spreedbox, _ := ar.Options.Scopes[auth.SpreedboxScopeID]; spreedbox ||
+		ar.ResponseType == "token" {
+		if ap.userConfig.ID != "" && ap.userConfig.Success {
+			claims[auth.SpreedboxIsUserClaimID] = true
+			claims[owncloud.IsAdminClaimID] = ap.userConfig.IsAdmin
+			claims[owncloud.IsSpreedmeAdminClaimID] = ap.userConfig.IsSpreedmeAdmin
+		}
+	}
+
 	return claims
 }
 
