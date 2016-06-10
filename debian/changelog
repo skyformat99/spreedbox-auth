@@ -1,3 +1,18 @@
+spreedbox-auth (0.5.0) trusty; urgency=medium
+
+  * Remove wrong subject_types_supported entry from discovery document.
+  * Clarify that authorize request parameter / request objects are not supported.
+  * Add comment about claims parameter.
+  * Do not include private provider claims in id_token.
+  * Remove hardcoded required issuer and provide error callback details, so callback could make educated actions.
+  * Expose issuer in discovery document and changed default to https://spreedbox.local.
+  * Add support for spreedbox scope and claims.
+  * Implement jwks endpoint.
+  * Remove debug.
+  * Use godeps from github.
+
+ -- Simon Eisenmann <simon@struktur.de>  Fri, 10 Jun 2016 16:52:55 +0200
+
 spreedbox-auth (0.4.2) trusty; urgency=medium
 
   * Add angular API to start/stop restart and logout with refresher.
