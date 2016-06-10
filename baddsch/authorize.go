@@ -217,7 +217,7 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvi
 	// Set gathered data.
 	if doc.AuthProvider != nil {
 		if authProvided != nil && authProvided.Status() {
-			log.Println("authentication provided:", authProvided.Status(), authProvided.UserID())
+			//log.Println("authentication provided:", authProvided.Status(), authProvided.UserID())
 			ar.userID = authProvided.UserID()
 		} else {
 			if ar.Prompt == "none" {
