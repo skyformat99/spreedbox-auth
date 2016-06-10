@@ -41,10 +41,11 @@ func (api *APIv1) AddResources(holder APIResourceHolder, authProvider AuthProvid
 	if err != nil {
 		return err
 	}
-	tokenIssueIdentifier := api.Config.GetStringDefault("auth", "tokenIssueIdentifier", "https://self-issued.me")
+	tokenIssueIdentifier := api.Config.GetStringDefault("auth", "tokenIssueIdentifier", "https://spreedbox.local")
 	tokenAccessTokenClaim := api.Config.GetStringDefault("auth", "tokenAccessTokenClaim", "baddsch/at")
 
 	api.WellKnownSpreedConfigurationDocument = &JSONDocument{map[string]interface{}{
+		"issuer":                                tokenIssueIdentifier,
 		"owncloud_endpoint":                     "https://{{.Host}}/index.php",
 		"owncloud-spreedme_endpoint":            "https://{{.Host}}/index.php/apps/spreedme",
 		"spreed-webrtc_endpoint":                "https://{{.Host}}/webrtc",
