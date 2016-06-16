@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+<head>
+<script src="/spreedbox-auth/api/v1/static/scripts/spreedbox-auth.js"></script>
+</head>
+<body>
+<h3>Auth API example nested</h3>
+<script>
+(function(auth) {
+	var refresher = auth.app.refresher({
+		scope: 'openid spreedbox'
+	});
+
+	refresher.onauth = function(auth) {
+		console.log("outer onauth", auth);
+	};
+	console.log("created outer refresher");
+})(this.spreedboxAuth);
+</script>
+<iframe src="example1.html"></iframe>
+</body>
+</html>

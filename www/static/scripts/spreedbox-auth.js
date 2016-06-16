@@ -641,15 +641,23 @@
 		early_refresh_percent: 70,
 		browser_state_cookie_name: 'oc_spreedbox',
 		browser_state_check_seconds: 120,
-		requiredIssuer: requiredIssuer
+		required_issuer: requiredIssuer,
+		enable_in_iframe: false
 	};
 	function RefresherApp(opts) {
 		var options = mergeOptions(opts, refresherDefaultOptions);
 
-		function trigger(refresher, name, auth, error) {
+		var linked = [];
+		function doTrigger(refresher, name, auth, error) {
 			var f = refresher['on' + name];
 			if (f) {
 				f(auth, error);
+			}
+		}
+		function trigger(refresher, name, auth, error) {
+			doTrigger(refresher, name, auth, error);
+			for (var i = 0; i < linked.length; i++) {
+				doTrigger(linked[i], name, auth, error);
 			}
 		}
 
@@ -658,12 +666,45 @@
 			this.ready = false;
 			this.started = false;
 			this.timer = null;
-			var refresher = this;
+			this.master = null;
 
 			if (settings.cache && !hasCurrentAuth()) {
 				// Load from cache.
 				loadCurrentAuthFromCache(true);
 			}
+
+			var refresher = this;
+			var create = true;
+			if (window.self !== window.top && !options.enable_in_iframe) {
+				// Not the top frame. Try to register with top refresher.
+				try {
+					create = !window.top.spreedboxAuthRefresher || !window.top.spreedboxAuthRefresher.link;
+				} catch (e) {
+					// Access error or not there, need to create ourselves.
+					create = true;
+				}
+
+				if (!create) {
+					window.top.spreedboxAuthRefresher.link(refresher);
+					window.setTimeout(function() {
+						trigger(refresher, 'auth', getCurrentAuth(), null);
+					}, 0);
+				}
+			}
+
+			if (create) {
+				window.spreedboxAuthRefresher = this;
+				this.createFrame(settings);
+			}
+
+			// Register our clear function,
+			registerCurrentAuthClearedListener(function() {
+				refresher.clear();
+			});
+		}
+
+		Refresher.prototype.createFrame = function(settings) {
+			var refresher = this;
 
 			this.frame = document.createElement('iframe');
 			this.frame.className = 'spreedbox-auth-refresher';
@@ -729,12 +770,7 @@
 				currentAuth = null;
 			});
 
-			// Register our clear function,
-			registerCurrentAuthClearedListener(function() {
-				refresher.clear();
-			});
-
-			// Always trigger auth after creation.
+			// Always trigger auth after frame creation.
 			window.setTimeout(function() {
 				if (currentAuth) {
 					currentState = currentAuth.state;
@@ -742,7 +778,15 @@
 				trigger(refresher, 'auth', currentAuth, null);
 				refresher.start();
 			}, 0);
-		}
+		};
+
+		Refresher.prototype.link = function(otherRefresher) {
+			if (otherRefresher === this) {
+				throw 'refusing to link with self';
+			}
+			linked.push(otherRefresher);
+			otherRefresher.master = this;
+		};
 
 		Refresher.prototype.start = function(restart) {
 			if (this.started) {
@@ -750,6 +794,9 @@
 					return;
 				}
 				this.stop();
+			}
+			if (!this.frame) {
+				throw 'cannot start without frame';
 			}
 			this.started = true;
 			this.frame.setAttribute('src', this.settings.refresher_url);
@@ -764,6 +811,9 @@
 		};
 
 		Refresher.prototype.clear = function() {
+			if (this.master) {
+				return this.master.clear();
+			}
 			this.stop();
 			if (hasCurrentAuth()) {
 				clearCurrentAuth();
@@ -772,6 +822,12 @@
 		};
 
 		Refresher.prototype.refresh = function(cb) {
+			if (this.master) {
+				return this.master.refresh(cb);
+			}
+			if (!this.frame) {
+				throw 'cannot refresh without frame';
+			}
 			if (this.ready) {
 				this.ready = false;
 				this.frame.contentWindow.authorize(cb);
@@ -821,9 +877,9 @@
 
 			var options = mergeOptions(opts, this.settings);
 			this.options = options;
-			if (options.hasOwnProperty('requiredIssuer')) {
+			if (options.hasOwnProperty('required_issuer')) {
 				// Set global required issuer.
-				requiredIssuer = options.requiredIssuer;
+				requiredIssuer = options.required_issuer;
 			}
 		};
 
