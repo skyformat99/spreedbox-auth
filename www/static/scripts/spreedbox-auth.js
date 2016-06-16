@@ -632,6 +632,9 @@
 		return new Redirector(options);
 	}
 
+	var currentRefresher = null;
+	var currentRefresherLinkQueue = [];
+
 	// Refresher app.
 	var refresherDefaultOptions = {
 		refresher_url: baseScriptURL + '/../refresher.html',
@@ -645,6 +648,10 @@
 		enable_in_iframe: false
 	};
 	function RefresherApp(opts) {
+		if (currentRefresher) {
+			throw 'there is already a refresher';
+		}
+
 		var options = mergeOptions(opts, refresherDefaultOptions);
 
 		var linked = [];
@@ -858,8 +865,30 @@
 		// - refresher.refresh()
 		// - refresher.with(cb)
 
-		return new Refresher(options);
+		var refresher = new Refresher(options);
+		if (!currentRefresher) {
+			for (var i = 0; i < currentRefresherLinkQueue.length; i++) {
+				refresher.link(currentRefresherLinkQueue[0]);
+			}
+			currentRefresherLinkQueue = [];
+		}
+		currentRefresher = refresher;
+
+		return refresher;
 	}
+
+	RefresherApp.on = function(name, cb) {
+		// Link a fake refresher.
+		var data = {};
+		data['on' + name] = cb;
+
+		if (!currentRefresher) {
+			currentRefresherLinkQueue.push(data);
+			return;
+		}
+
+		currentRefresher.link(data);
+	};
 
 	// Handler app.
 	var handlerDefaultOptions = {};

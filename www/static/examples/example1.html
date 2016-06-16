@@ -12,8 +12,11 @@
 	});
 
 	refresher.onauth = function(auth) {
-		console.log("onauth", auth);
+		console.log("onauth direct", auth);
 	};
+	auth.app.refresher.on('auth', function(auth) {
+		console.log("onauth event", auth);
+	})
 	console.log("created refresher");
 })(this.spreedboxAuth);
 </script>
