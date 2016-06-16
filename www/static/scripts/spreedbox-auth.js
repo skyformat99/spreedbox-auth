@@ -672,7 +672,13 @@
 			var currentAuth = getCurrentAuth();
 			var currentState = null;
 			this.frame.addEventListener('load', function() {
-				if (!this.contentWindow.run && settings.load_error_retry_seconds > 0) {
+				var ok = false;
+				try {
+					ok = this.contentWindow.run && this.contentWindow.document.body;
+				} catch (e) {
+					console.warn('Failed to access refresher frame', e);
+				}
+				if (!ok && settings.load_error_retry_seconds > 0) {
 					refresher.timer = window.setTimeout(function() {
 						refresher.frame.setAttribute('src', settings.refresher_url);
 					}, settings.load_error_retry_seconds * 1000);
