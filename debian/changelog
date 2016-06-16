@@ -1,3 +1,12 @@
+spreedbox-auth (0.5.1) trusty; urgency=medium
+
+  * Remove debug.
+  * Properly catch frame access error in load of refresher.
+  * Implement refresher nesting detection so it refreshes only once.
+  * Add spreedbox to the default scope, now "openid spreedbox".
+
+ -- Simon Eisenmann <simon@struktur.de>  Thu, 16 Jun 2016 11:17:56 +0200
+
 spreedbox-auth (0.5.0) trusty; urgency=medium
 
   * Remove wrong subject_types_supported entry from discovery document.
