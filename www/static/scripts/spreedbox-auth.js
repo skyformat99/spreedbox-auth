@@ -219,7 +219,7 @@
 	// Our main app.
 	var authorizeDefaultOptions = {
 		response_type: 'id_token token',
-		scope: 'openid',
+		scope: 'openid spreedbox',
 		authorize_url: baseAPIURL + '/authorize',
 		early_expired_percent: 80
 	};
