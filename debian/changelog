@@ -1,3 +1,9 @@
+spreedbox-auth (0.5.4) trusty; urgency=medium
+
+  * Add missing semicolon
+
+ -- Simon Eisenmann <simon@struktur.de>  Fri, 24 Jun 2016 13:37:28 +0200
+
 spreedbox-auth (0.5.3) trusty; urgency=medium
 
   * Fake enabled started flag when with master
