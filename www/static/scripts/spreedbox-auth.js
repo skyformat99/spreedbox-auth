@@ -693,7 +693,7 @@
 
 				if (!create) {
 					window.top.spreedboxAuthRefresher.link(refresher);
-					refresher.started = true // Fake start.
+					refresher.started = true; // Fake start.
 					window.setTimeout(function() {
 						trigger(refresher, 'auth', getCurrentAuth(), null);
 					}, 0);
