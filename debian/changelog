@@ -1,3 +1,9 @@
+spreedbox-auth (0.5.3) trusty; urgency=medium
+
+  * Fake enabled started flag when with master
+
+ -- Simon Eisenmann <simon@struktur.de>  Fri, 24 Jun 2016 13:27:12 +0200
+
 spreedbox-auth (0.5.2) trusty; urgency=medium
 
   * Implement refresh general 'on' event registration.
