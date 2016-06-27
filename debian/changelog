@@ -1,3 +1,9 @@
+spreedbox-auth (0.5.5) trusty; urgency=medium
+
+  * Inherit master auth when creating child iframe
+
+ -- Simon Eisenmann <simon@struktur.de>  Mon, 27 Jun 2016 10:05:59 +0200
+
 spreedbox-auth (0.5.4) trusty; urgency=medium
 
   * Add missing semicolon
