@@ -692,7 +692,11 @@
 				}
 
 				if (!create) {
-					window.top.spreedboxAuthRefresher.link(refresher);
+					var masterCurrentAuth = window.top.spreedboxAuthRefresher.link(refresher);
+					if (masterCurrentAuth) {
+						// Directly take auth from master four ouselves.
+						setCurrentAuth(masterCurrentAuth, false);
+					}
 					refresher.started = true; // Fake start.
 					window.setTimeout(function() {
 						trigger(refresher, 'auth', getCurrentAuth(), null);
@@ -794,6 +798,7 @@
 			}
 			linked.push(otherRefresher);
 			otherRefresher.master = this;
+			return getCurrentAuth();
 		};
 
 		Refresher.prototype.start = function(restart) {
