@@ -1,3 +1,9 @@
+spreedbox-auth (0.5.6) trusty; urgency=medium
+
+  * Add IE11 compatibility
+
+ -- Simon Eisenmann <simon@struktur.de>  Tue, 05 Jul 2016 15:51:40 +0200
+
 spreedbox-auth (0.5.5) trusty; urgency=medium
 
   * Inherit master auth when creating child iframe
