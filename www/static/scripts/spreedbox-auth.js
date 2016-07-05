@@ -23,7 +23,12 @@
 
 			var link = document.createElement('a');
 			link.href = currentScript.src;
-			var parts = link.pathname.split('/spreedbox-auth.js', 2);
+			var pathname = link.pathname;
+			if (pathname && pathname[0] !== '/') {
+				// Fix IE out of document support. See https://connect.microsoft.com/IE/Feedback/Details/1002846 for details.
+				pathname = '/' + pathname;
+			}
+			var parts = pathname.split('/spreedbox-auth.js', 2);
 			if (parts.length === 2) {
 				return parts[0];
 			}
@@ -73,12 +78,17 @@
 		}
 	}
 
+	function getRandomValues(buf) {
+		var crypto = window.crypto || window.msCrypto;
+		return crypto.getRandomValues(buf);
+	}
+
 	function getRandomString(length) {
 		if (!length || length < 0) {
 			length = 12;
 		}
 		var data = new Uint32Array(32);
-		window.crypto.getRandomValues(data);
+		getRandomValues(data);
 		var shaObj = new JsSHA('SHA-256', 'ARRAYBUFFER');
 		shaObj.update(data);
 
@@ -87,7 +97,8 @@
 
 	function createNonce() {
 		var data = new Uint32Array(32);
-		window.crypto.getRandomValues(data);
+		var crypto = window.crypto;
+		getRandomValues(data);
 		var shaObj = new JsSHA('SHA-256', 'ARRAYBUFFER');
 		shaObj.update(data);
 		var nonce = shaObj.getHash('HEX');
