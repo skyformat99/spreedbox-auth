@@ -1,3 +1,9 @@
+spreedbox-auth (0.5.7) trusty; urgency=medium
+
+  * Remove explict ownCloud dependency
+
+ -- Simon Eisenmann <simon@struktur.de>  Thu, 14 Jul 2016 13:54:36 +0200
+
 spreedbox-auth (0.5.6) trusty; urgency=medium
 
   * Add IE11 compatibility
