@@ -1,3 +1,10 @@
+spreedbox-auth (0.6.0) trusty; urgency=medium
+
+  * Add README
+  * Change owncloudLoginFormURL to /login by default
+
+ -- Simon Eisenmann <simon@struktur.de>  Fri, 09 Sep 2016 09:19:46 +0200
+
 spreedbox-auth (0.5.7) trusty; urgency=medium
 
   * Remove explict ownCloud dependency
