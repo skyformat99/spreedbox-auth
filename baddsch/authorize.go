@@ -211,7 +211,10 @@ func (ar *AuthenticationRequest) Authenticate(doc *AuthorizeDocument) (AuthProvi
 
 	if err != nil {
 		log.Println("authorization provider failure", err.Error())
-		return nil, errors.New("server_error"), "authorization provider failure"
+		if ar.Prompt == "none" {
+			return nil, errors.New("server_error"), "authorization provider failure"
+		}
+		return authProvided, errors.New("server_error"), "authorization provider failure"
 	}
 
 	// Set gathered data.
