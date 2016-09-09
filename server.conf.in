@@ -43,8 +43,8 @@ tokenPrivateKey = ./server.key
 ## authorization provider.
 # owncloudURL = http://127.0.0.1:9673/index.php/apps/spreedbox
 ## When using the ownCloud provider, it can prompt for login by
-## redirecting to the login form. Defaults to '/'.
-# owncloudLoginFormURL = /
+## redirecting to the login form. Defaults to '/login'.
+# owncloudLoginFormURL = /login
 ## Skip SSL validation for ownCloud authorization provider connections.
 ## Defaults to false (means SSL is validated).
 # owncloudSkipSSLValidation = false

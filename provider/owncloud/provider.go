@@ -16,7 +16,7 @@ var (
 	DefaultConfigEndpoint                 = "api/v1/user/config"
 	DefaultProviderPoolSize               = 4
 	DefaultProviderSkipSSLValidation      = false
-	DefaultProviderLoginFormURL           = "/"
+	DefaultProviderLoginFormURL           = "/login"
 	DefaultProviderBrowserStateCookieName = "oc_spreedbox"
 )
 
