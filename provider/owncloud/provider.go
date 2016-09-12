@@ -49,7 +49,8 @@ func NewProvider(url string, config *ProviderConfig) (baddsch.AuthProvider, erro
 			// Owncloud returns auth errors as 401.
 			return newAuthProvided(config, nil, cookies), nil
 		default:
-			return nil, err
+			// Handle all other errors similar to unauthorized, but with error.
+			return newAuthProvided(config, nil, cookies), err
 		}
 
 		var response spreedmePluginUserConfig
