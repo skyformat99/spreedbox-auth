@@ -1,3 +1,9 @@
+spreedbox-auth (0.6.2) trusty; urgency=medium
+
+  * Use Nextcloud provider even if no JSON was returned
+
+ -- Simon Eisenmann <simon@struktur.de>  Mon, 12 Sep 2016 13:46:02 +0200
+
 spreedbox-auth (0.6.1) trusty; urgency=medium
 
   * Allow authprovider handle its own failures
