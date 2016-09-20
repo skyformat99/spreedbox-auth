@@ -237,8 +237,8 @@
 	function authorize(opts) {
 		var options = mergeOptions(opts, authorizeDefaultOptions);
 
-		// Get and kill all hash data.
-		var params = parseHash(true);
+		// Get all hash data.
+		var params = parseHash();
 
 		// Check parameters.
 		if (params.error) {
@@ -329,7 +329,7 @@
 		// Build API query parameters.
 		var query = {
 			response_type: options.response_type,
-			redirect_url: currentURL,
+			redirect_url: location.href, // Full current URL to use as redirect URL to come back here.
 			nonce: createNonce(),
 			state: createState(),
 			scope: options.scope
