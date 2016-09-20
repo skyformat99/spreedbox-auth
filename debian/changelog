@@ -1,3 +1,9 @@
+spreedbox-auth (0.6.3) trusty; urgency=medium
+
+  * Support hash in redirect URLs
+
+ -- Simon Eisenmann <simon@struktur.de>  Tue, 20 Sep 2016 14:14:57 +0200
+
 spreedbox-auth (0.6.2) trusty; urgency=medium
 
   * Use Nextcloud provider even if no JSON was returned
