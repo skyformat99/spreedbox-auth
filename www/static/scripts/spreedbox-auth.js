@@ -247,6 +247,7 @@
 			getAndClearStoredState();
 			getAndClearStoredNonce();
 
+			parseHash(true);
 			if (options.onError) {
 				options.onError(params);
 			} else {
@@ -305,6 +306,7 @@
 				break;
 			}
 
+			parseHash(true);
 			if (err) {
 				clearCurrentAuth();
 				if (options.onError) {
