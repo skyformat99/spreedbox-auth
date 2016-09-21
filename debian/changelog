@@ -1,3 +1,9 @@
+spreedbox-auth (0.6.4) trusty; urgency=medium
+
+  * Kill hash when in error and state stage
+
+ -- Simon Eisenmann <simon@struktur.de>  Wed, 21 Sep 2016 14:20:05 +0200
+
 spreedbox-auth (0.6.3) trusty; urgency=medium
 
   * Support hash in redirect URLs
