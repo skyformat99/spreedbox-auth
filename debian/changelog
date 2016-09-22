@@ -1,3 +1,9 @@
+spreedbox-auth (0.6.5) trusty; urgency=medium
+
+  * Add helpers and start/stop support
+
+ -- Simon Eisenmann <simon@struktur.de>  Thu, 22 Sep 2016 10:55:34 +0200
+
 spreedbox-auth (0.6.4) trusty; urgency=medium
 
   * Kill hash when in error and state stage
