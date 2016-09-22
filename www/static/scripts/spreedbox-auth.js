@@ -202,6 +202,7 @@
 	function parseHash(kill) {
 		var params = decodeParams(location.hash.substring(1));
 		if (kill) {
+			//console.log("spreedbox-auth, killing hash", location.hash, params);
 			history.replaceState('', document.title, currentURL);
 		}
 
@@ -349,6 +350,7 @@
 		}
 
 		// Redirect to authorize end point.
+		console.log('spreedbox-auth, authorize replacing location', options.authorize_url, query);
 		location.replace(options.authorize_url + '?' + encodeParams(query));
 	}
 
@@ -598,6 +600,7 @@
 			}
 			var url = link.protocol + '//' + link.host + link.pathname + link.search + link.hash;
 
+			console.log('spredbox-auth, redirector replacing location', url, location.href);
 			location.replace(url);
 		}
 
@@ -737,7 +740,9 @@
 			document.body.appendChild(this.frame);
 			var currentAuth = getCurrentAuth();
 			var currentState = null;
+			//console.log('spreedbox-auth, create refresher frame');
 			this.frame.addEventListener('load', function() {
+				//console.log('spreedbox-auth, refresher load');
 				var ok = false;
 				try {
 					ok = this.contentWindow.run && this.contentWindow.document.body;

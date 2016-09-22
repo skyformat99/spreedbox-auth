@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+<body>
+<script>
+	function getURLParameter(name) {
+		return decodeURIComponent(
+			(new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(
+				location.search)||[,null])[1].replace(/\+/g, '%20')
+			)||null;
+	}
+
+	function login() {
+		console.log('login clicked');
+		var redirect_url = getURLParameter('redirect_url');
+		if (!redirect_url) {
+			alert('no redirect URL, not logging in');
+			return;
+		}
+
+		document.cookie = 'spreedbox-auth-test=true; path=/';
+
+		console.log('redirect_url', redirect_url);
+		window.setTimeout(function() {
+			console.log('redirecting to', redirect_url);
+			window.location.href = redirect_url;
+		}, 500);
+	}
+</script>
+<button onclick="login()">Login</button>
+</body>
+</html>

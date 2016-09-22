@@ -3,6 +3,7 @@ package owncloud
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 
@@ -29,14 +30,22 @@ func NewProvider(url string, config *ProviderConfig) (baddsch.AuthProvider, erro
 	return httpauth.NewProvider(fullURL, func(message []byte, cookies []*http.Cookie, err error) (baddsch.AuthProvided, error) {
 		if false {
 			// XXX(longsleep): Development helper.
-			testResponse := &spreedmePluginUserConfig{
-				true,
-				"admin",
-				"Debug Admin",
-				true,
-				true,
-				"some-state",
+			log.Println("DEBUG auth path enabled", cookies)
+			var testResponse *spreedmePluginUserConfig
+			for _, cookie := range cookies {
+				if cookie.Name == "spreedbox-auth-test" && cookie.Value == "true" {
+					testResponse = &spreedmePluginUserConfig{
+						true,
+						"admin",
+						"Debug Admin",
+						true,
+						true,
+						"some-state",
+					}
+					break
+				}
 			}
+
 			return newAuthProvided(config, testResponse, cookies), nil
 		}
 

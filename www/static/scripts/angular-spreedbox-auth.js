@@ -78,6 +78,20 @@ angular.module('ngSpreedboxAuth', [])
 				first = true;
 			};
 
+			SpreedboxAuth.prototype.stop = function() {
+				console.log('spreedbox-auth, stop');
+				if (currentRefresher) {
+					currentRefresher.stop();
+				}
+			};
+
+			SpreedboxAuth.prototype.start = function() {
+				console.log('spreedbox-auth, start');
+				if (currentRefresher) {
+					currentRefresher.start(true);
+				}
+			};
+
 			SpreedboxAuth.prototype.logout = function(options) {
 				first = true;
 				$window.spreedboxAuth.app.logout(options);
