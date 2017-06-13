@@ -7,7 +7,7 @@ SYSTEM_GOPATH = /usr/share/gocode/src/
 DIST := $(PWD)/dist
 DIST_SRC := $(DIST)/src
 
-FOLDERS = $(shell find -mindepth 1 -maxdepth 1 -type d -not -path "*.git" -not -path "*debian" -not -path "*vendor" -not -path "*doc" -not -path "*test" -not -path "*scripts" -not -path "*www")
+FOLDERS = $(shell find -mindepth 1 -maxdepth 1 -type d -not -path "*.git" -not -path "*debian" -not -path "*vendor" -not -path "*doc" -not -path "*test" -not -path "*scripts" -not -path "*www" -not -path "*bin")
 
 VERSION := $(shell dpkg-parsechangelog | sed -n 's/^Version: //p')
 
@@ -38,6 +38,10 @@ goget:
 
 build: goget
 	GOPATH=$(GOPATH) go build $(FOLDERS)
+
+binary: build
+	mkdir -p $(CURDIR)/bin
+	GOPATH=$(GOPATH) go build -o $(CURDIR)/bin/baddschd baddschd/main.go
 
 test: goget
 	GOPATH=$(GOPATH) go test -v $(FOLDERS)
