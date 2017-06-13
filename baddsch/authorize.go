@@ -107,6 +107,33 @@ func NewAuthenticationRequest(r *http.Request) (*AuthenticationRequest, error) {
 	return ar, nil
 }
 
+func (ar *AuthenticationRequest) IsValidRedirect(url *url.URL) bool {
+	if url == nil {
+		return false
+	}
+
+	for {
+		if url.Scheme == "https" {
+			if url.Host == ar.Request.Host {
+				// Allow all targets on the host which was used to access us.
+				// NOTE(longsleep): This is a implicit white list which does
+				// not have a path component.
+				break
+			}
+		}
+
+		if url.Scheme == "http" && url.Host == "localhost" {
+			// http://localhost allowed for native applications.
+			break
+		}
+
+		// Everything else is invalid.
+		return false
+	}
+
+	return true
+}
+
 func (ar *AuthenticationRequest) Validate(doc *AuthorizeDocument) (error, string) {
 	switch ar.ResponseType {
 	case "id_token":
@@ -131,22 +158,7 @@ func (ar *AuthenticationRequest) Validate(doc *AuthorizeDocument) (error, string
 		return errors.New("invalid_scope"), "must have openid scope"
 	}
 
-	for {
-		if ar.Options.RedirectURL.Scheme == "https" {
-			if ar.Options.RedirectURL.Host == ar.Request.Host {
-				// Allow all targets on the host which was used to access us.
-				// NOTE(longsleep): This is a implicit white list which does
-				// not have a path component.
-				break
-			}
-		}
-
-		if ar.Options.RedirectURL.Scheme == "http" && ar.Options.RedirectURL.Host == "localhost" {
-			// http://localhost allowed for native applications.
-			break
-		}
-
-		// Everything else is invalid.
+	if !ar.IsValidRedirect(ar.Options.RedirectURL) {
 		return errors.New("invalid_request"), "unknown redirect_url"
 	}
 
@@ -289,6 +301,10 @@ func (ar *AuthenticationRequest) Response(doc *AuthorizeDocument) (int, interfac
 	if err != nil {
 		return http.StatusBadRequest, err.Error(), nil
 	}
+	if !ar.IsValidRedirect(redirectURL) {
+		// Prevent open redirect vulnerability.
+		return ar.ReturnResponse(http.StatusBadRequest, "unsupported redirect")
+	}
 	ar.Options.RedirectURL = redirectURL
 
 	var errDescription string
@@ -418,6 +434,14 @@ done:
 	}
 
 	return ar.Redirect(ar.Options.RedirectURL, successResponse, ar.Options.UseFragment, nil)
+}
+
+func (ar *AuthenticationRequest) ReturnResponse(code int, body string) (int, interface{}, http.Header) {
+	headers := http.Header{}
+	headers.Set("Cache-Control", "no-store")
+	headers.Set("Pragma", "no-cache")
+
+	return code, body, headers
 }
 
 func (ar *AuthenticationRequest) Redirect(url *url.URL, params interface{}, fragment bool, headers http.Header) (int, interface{}, http.Header) {
