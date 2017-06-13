@@ -1,3 +1,9 @@
+spreedbox-auth (0.6.7) trusty; urgency=medium
+
+  * Move static webserver files to separate package.
+
+ -- Joachim Bauch <bauch@struktur.de>  Tue, 13 Jun 2017 10:09:04 +0200
+
 spreedbox-auth (0.6.6) trusty; urgency=medium
 
   * Added target "binary".
