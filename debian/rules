@@ -9,11 +9,13 @@ DEBVERS := $(shell dpkg-parsechangelog | sed -n -e 's/^Version: //p')
 VERSION := $(shell echo '$(DEBVERS)' | sed -e 's/^[[:digit:]]*://' -e 's/[~-].*//')
 export VERSION
 
-override_dh_auto_build:
-	dh_auto_build
+override_dh_auto_build-indep:
 	DEB_BUILDING=1 $(MAKE) www-release
 
-override_dh_install:
+override_dh_auto_test-indep:
+	# no tests for architecture independent files
+
+override_dh_install-arch:
 	dh_install
 	install -m644 -D $(CURDIR)/server.conf.in $(CURDIR)/debian/spreedbox-authd/etc/spreedbox/baddschd.conf
 	sed -i 's|^# provider =\(.*\)|provider = owncloud|;' $(CURDIR)/debian/spreedbox-authd/etc/spreedbox/baddschd.conf
@@ -25,9 +27,11 @@ override_dh_install:
 	install -m755 -D $(CURDIR)/debian/firstboot.sh $(CURDIR)/debian/spreedbox-authd/etc/firstboot/firstboot.d/10generate-auth-keys
 	mkdir -p $(CURDIR)/debian/spreedbox-authd/usr/share/spreedbox-authd
 	cp -v $(CURDIR)/scripts/* $(CURDIR)/debian/spreedbox-authd/usr/share/spreedbox-authd
-	mkdir -p $(CURDIR)/debian/spreedbox-authd/usr/share/spreedbox-authd/www
-	cp -r $(CURDIR)/www/build/* $(CURDIR)/debian/spreedbox-authd/usr/share/spreedbox-authd/www
 
+override_dh_install-indep:
+	dh_install -i
+	mkdir -p $(CURDIR)/debian/spreedbox-authd-www/usr/share/spreedbox-authd/www
+	cp -r $(CURDIR)/www/build/* $(CURDIR)/debian/spreedbox-authd-www/usr/share/spreedbox-authd/www
 
 %:
 	dh $@ --buildsystem=golang --with=golang --fail-missing

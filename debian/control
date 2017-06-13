@@ -48,6 +48,7 @@ Depends:
  ${shlibs:Depends},
  ${misc:Depends},
  libressl-apps | openssl,
+ spreedbox-authd-www (= ${source:Version}),
  spreedbox-service,
  spreedbox-webserver (>= 0.1.0)
 Recommends:
@@ -55,3 +56,13 @@ Recommends:
 Description: Provides a Spreedbox auth service.
  Makes .well-known and auth related APIs available on the Spreedbox.
 
+Package: spreedbox-authd-www
+Architecture: all
+Depends:
+ ${misc:Depends}
+Replaces:
+ spreedbox-authd (<< 0.6.6)
+Conflicts:
+ spreedbox-authd (<< 0.6.6)
+Description: Static webserver files for Spreedbox auth service.
+ This package provides the static webserver files required by spreedbox-authd.
