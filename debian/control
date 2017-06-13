@@ -2,7 +2,9 @@ Source: spreedbox-auth
 Section: spreed
 Priority: extra
 Maintainer: struktur AG <opensource@struktur.de>
-Uploaders: Simon Eisenmann <simon@struktur.de>
+Uploaders:
+ Simon Eisenmann <simon@struktur.de>,
+ Joachim Bauch <bauch@struktur.de>
 Build-Depends:
  debhelper (>= 9),
  dh-golang,
