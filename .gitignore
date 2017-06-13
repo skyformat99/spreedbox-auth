@@ -1,4 +1,7 @@
 /server.conf
 /server.key
+
+/bin
+/vendor
 /www/node_modules
 /www/build
