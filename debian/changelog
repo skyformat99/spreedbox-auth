@@ -1,3 +1,12 @@
+spreedbox-auth (0.6.6) trusty; urgency=medium
+
+  * Added target "binary".
+  * Ignore generated folders.
+  * Prevent open redirect vulnerability.
+  * Add myself to uploaders.
+
+ -- Joachim Bauch <bauch@struktur.de>  Tue, 13 Jun 2017 09:27:38 +0200
+
 spreedbox-auth (0.6.5) trusty; urgency=medium
 
   * Add helpers and start/stop support
